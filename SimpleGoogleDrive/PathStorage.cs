@@ -1,9 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Text.Json;
-using System.Threading.Tasks;
+﻿using System.Text.Json;
 
 namespace SimpleGoogleDrive
 {
@@ -11,14 +6,14 @@ namespace SimpleGoogleDrive
     {
         private static PathStorage? Reference { get; set; } = null;
         private static string SerializedStorage = @"./PathStorage.json";
-        private static bool SaveFile = true; 
+        private static readonly bool SaveFile = true;
 
         /// <summary>
         /// Gets the instance of the Path Storage.
         /// </summary>
         /// <param name="usePersistantStorage">If true, it will store a serialized version of the data to reload later</param>
         /// <param name="persistanceStoragePath">If usePersistantStorage is true, then it will store the data in this path</param>
-        public static PathStorage GetInstance( bool usePersistantStorage = false, string? persistanceStoragePath = default)
+        public static PathStorage GetInstance(bool usePersistantStorage = false, string? persistanceStoragePath = default)
         {
             if (Reference != null)
                 return Reference;
@@ -56,7 +51,7 @@ namespace SimpleGoogleDrive
 
         public string? this[string? key]
         {
-            get => storage!.GetValueOrDefault(key?.FormatPath(), null); 
+            get => storage!.GetValueOrDefault(key?.FormatPath(), null);
             set { if (key != null) storage[key.FormatPath()] = value; }
         }
 

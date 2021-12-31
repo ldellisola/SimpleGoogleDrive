@@ -1,9 +1,4 @@
 ﻿using Google.Apis.Drive.v3;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace SimpleGoogleDrive.Models
 {
@@ -16,12 +11,12 @@ namespace SimpleGoogleDrive.Models
         /// <param name="credentials">Credentials file from Google Cloud Console</param>
         /// <param name="userStore">Name of the data store where user authentication data will be stored</param>
         /// <param name="user">User name, tipically just "user"</param>
-        public DriveAuthorizationSettings(string applicationName,FileInfo credentials, string userStore, string user = "user")
+        public DriveAuthorizationSettings(string applicationName, FileInfo credentials, string userStore, string user = "user")
         {
-            this.User = user;
-            this.ApplicationName = applicationName;
-            this.Credentials = credentials;
-            this.UserStore = userStore;
+            User = user;
+            ApplicationName = applicationName;
+            Credentials = credentials;
+            UserStore = userStore;
         }
 
         /// <summary>
@@ -33,10 +28,10 @@ namespace SimpleGoogleDrive.Models
         /// <param name="user">User name, tipically just "user"</param>
         public DriveAuthorizationSettings(string applicationName, string clientSecret, string userStore, string user = "user")
         {
-            this.User = user;
-            this.ApplicationName = applicationName;
-            this.ClientSecret = clientSecret;
-            this.UserStore = userStore;
+            User = user;
+            ApplicationName = applicationName;
+            ClientSecret = clientSecret;
+            UserStore = userStore;
         }
 
         /// <summary>

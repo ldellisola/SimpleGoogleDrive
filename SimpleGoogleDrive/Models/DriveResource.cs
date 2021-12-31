@@ -1,13 +1,10 @@
 ﻿using SimpleGoogleDrive.Exceptions;
-using System.Collections;
-using System.Collections.Generic;
-using System.Linq;
 
 namespace SimpleGoogleDrive.Models
 {
     public class DriveResource
     {
-        private GoogleDriveService? service = null;
+        private readonly GoogleDriveService? service = null;
 
         public DriveResource(GoogleDriveService service)
         {
@@ -95,10 +92,10 @@ namespace SimpleGoogleDrive.Models
         /// <exception cref="ServiceNotAuthenticatedException">It's thrown if the service is not authenticated</exception>
         public async Task<IEnumerable<DriveResource>> GetInnerResources(QueryBuilder? parameters = default, bool deepSearch = false, CancellationToken token = default)
         {
-            if (this.Type != MimeType.Folder)
+            if (Type != MimeType.Folder)
                 return Enumerable.Empty<DriveResource>();
 
-            var query = new QueryBuilder(parameters).IsParent(this.Id);
+            var query = new QueryBuilder().IsParent(Id).And(parameters);
 
             var resources = new List<DriveResource>();
 
@@ -109,7 +106,7 @@ namespace SimpleGoogleDrive.Models
 
             if (deepSearch)
             {
-                var folders = await (service?.QueryResources(new QueryBuilder().IsType(MimeType.Folder).IsParent(this.Id), token) ?? throw new ServiceNotAuthenticatedException());
+                var folders = await (service?.QueryResources(new QueryBuilder().IsType(MimeType.Folder).And().IsParent(Id), token) ?? throw new ServiceNotAuthenticatedException());
 
                 foreach (var folder in folders)
                 {
@@ -154,7 +151,7 @@ namespace SimpleGoogleDrive.Models
         /// <exception cref="FolderCannotBeCopiedException">It's thrown if the resource to be copied is a folder</exception>
         public Task<DriveResource?> Copy(string destination, CancellationToken token = default)
         {
-            if (this.Type == MimeType.Folder)
+            if (Type == MimeType.Folder)
                 throw new FolderCannotBeCopiedException();
 
             return service?.CopyResource(this, destination, token) ?? throw new ServiceNotAuthenticatedException();
@@ -170,7 +167,7 @@ namespace SimpleGoogleDrive.Models
         /// <exception cref="FolderCannotBeCopiedException">It's thrown if the resource to be copied is a folder</exception>
         public Task<DriveResource?> Copy(DriveResource parentFolder, CancellationToken token = default)
         {
-            if (this.Type == MimeType.Folder)
+            if (Type == MimeType.Folder)
                 throw new FolderCannotBeCopiedException();
 
             return service?.CopyResource(this, parentFolder, token) ?? throw new ServiceNotAuthenticatedException();

@@ -131,7 +131,7 @@ namespace SimpleGoogleDrive
                 return storage.Key(resource.Id);
             }
 
-            var notInRoot = (await QueryResources(new QueryBuilder().IsNotParent("root").IsParent(resource.Parent).IsName(resource.Name))).Count() != 0;
+            var notInRoot = (await QueryResources(new QueryBuilder().IsNotParent("root").And().IsParent(resource.Parent).And().IsName(resource.Name))).Count() != 0;
 
             if (resource.Parent != null && notInRoot)
             {
@@ -225,7 +225,7 @@ namespace SimpleGoogleDrive
                     return folder;
             }
 
-            var query = new QueryBuilder(parameters).IsType(DriveResource.MimeType.Folder);
+            var query = new QueryBuilder().IsType(DriveResource.MimeType.Folder).And(parameters);
 
             var resource = await FindResource(pathToFolder, query, token);
 
@@ -244,7 +244,7 @@ namespace SimpleGoogleDrive
         public Task<DriveResource?> FindFile(string? pathToFile, QueryBuilder? parameters = default, CancellationToken token = default)
         {
 
-            var query = new QueryBuilder(parameters).IsNotType(DriveResource.MimeType.Folder);
+            var query = new QueryBuilder().IsNotType(DriveResource.MimeType.Folder).And(parameters);
 
             return FindResource(pathToFile, query, token);
 
@@ -275,7 +275,7 @@ namespace SimpleGoogleDrive
             }
 
 
-            var query = new QueryBuilder(parameters).IsName(resource).IsParent(parentFolderId);
+            var query = new QueryBuilder().IsName(resource).And().IsParent(parentFolderId).And(parameters);
 
 
             var result = await QueryResources(query, token);
@@ -308,7 +308,7 @@ namespace SimpleGoogleDrive
         {
             var (path, resourceName) = pathToResource.SplitPathFromResource();
 
-            var query = new QueryBuilder(parameters).IsName(resourceName);
+            var query = new QueryBuilder().IsName(resourceName).And(parameters);
 
             if (path != null)
             {

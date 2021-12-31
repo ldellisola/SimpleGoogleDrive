@@ -1,12 +1,7 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace SimpleGoogleDrive.Exceptions
+﻿namespace SimpleGoogleDrive.Exceptions
 {
-    public class FolderCannotBeCopiedException: Exception
+    public class FolderCannotBeCopiedException : Exception
     {
+        public FolderCannotBeCopiedException() : base("Folders cannot be copied in Google Drive") { }
     }
 }

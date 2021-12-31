@@ -1,12 +1,5 @@
 ﻿using SimpleGoogleDrive.Models;
-using System;
-using System.Collections.Generic;
 using System.Globalization;
-using System.IO;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
 namespace SimpleGoogleDrive
 {
     internal static class Extensions
@@ -37,7 +30,7 @@ namespace SimpleGoogleDrive
         public static DriveResource.MimeType MimeType(this Google.Apis.Drive.v3.Data.File f)
         {
             var comp = StringComparer.Create(CultureInfo.InvariantCulture, true);
-            return Enum.GetValues<DriveResource.MimeType>().FirstOrDefault(t => comp.Compare(t.GetString(),f.MimeType) == 0, DriveResource.MimeType.Unknown);
+            return Enum.GetValues<DriveResource.MimeType>().FirstOrDefault(t => comp.Compare(t.GetString(), f.MimeType) == 0, DriveResource.MimeType.Unknown);
         }
 
         public static string GetString(this DriveResource.MimeType value)
@@ -63,13 +56,13 @@ namespace SimpleGoogleDrive
         public static (string?, string) SplitPathFromResource(this string pathToResource)
         {
             var path = pathToResource.Split(new char[] { '/', '\\' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-            
+
             string? parentPath = null;
             var resource = path.Last();
 
             if (path.Length >= 2)
             {
-                parentPath = path.SkipLast(1).Aggregate("",(a, b) => a += $"{b}/");
+                parentPath = path.SkipLast(1).Aggregate("", (a, b) => a += $"{b}/");
             }
 
             return (parentPath, resource);
@@ -78,7 +71,7 @@ namespace SimpleGoogleDrive
         public static string FormatPath(this string path)
         {
             return path.Split(new char[] { '/', '\\' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-                .Aggregate("",(a,b) => a+=$"{b}/")
+                .Aggregate("", (a, b) => a += $"{b}/")
                 ;
 
         }
