@@ -1,4 +1,6 @@
 ﻿using Google.Apis.Auth.OAuth2;
+using Google.Apis.Auth.OAuth2.Flows;
+using Google.Apis.Auth.OAuth2.Requests;
 using Google.Apis.Drive.v3;
 using Google.Apis.Services;
 using Google.Apis.Util.Store;
@@ -9,18 +11,18 @@ namespace SimpleGoogleDrive
 {
     public class GoogleDriveService : IDisposable
     {
-        private readonly DriveAuthorizationSettings settings;
+        private readonly DriveAuthSettings settings;
         private DriveService? service;
         private readonly PathStorage storage;
         private bool disposedValue;
 
-        public GoogleDriveService(DriveAuthorizationSettings settings_, bool usePersistantStorage = false, string? persistanceStoragePath = default)
+        public GoogleDriveService(DriveAuthSettings settings, bool usePersistentStorage = false, string? persistentStoragePath = default)
         {
-            storage = PathStorage.GetInstance(usePersistantStorage, persistanceStoragePath);
+            storage = PathStorage.GetInstance(usePersistentStorage, persistentStoragePath);
 
-            if (settings_.IsValid())
+            if (settings.IsValid())
             {
-                settings = settings_;
+                this.settings = settings;
             }
             else
             {
@@ -40,13 +42,15 @@ namespace SimpleGoogleDrive
                 clientSecrets = (await GoogleClientSecrets.FromFileAsync(settings.Credentials?.FullName, token)).Secrets;
             else
                 clientSecrets.ClientSecret = settings.ClientSecret;
+            
 
             UserCredential credential = await GoogleWebAuthorizationBroker.AuthorizeAsync(
                 clientSecrets,
                 settings.Scope,
                 settings.User,
                 token,
-                new FileDataStore(settings.UserStore)
+                new FileDataStore(settings.UserStore),
+                settings.Mode == DriveAuthSettings.AuthMode.Console ? new PromptCodeReceiver() : new LocalServerCodeReceiver()
             );
 
             service = new DriveService(new BaseClientService.Initializer()
@@ -69,7 +73,7 @@ namespace SimpleGoogleDrive
         /// <summary>
         /// It creates all the folders in the path. If the folders exists it does not do anything
         /// </summary>
-        /// <param name="folderPath">It's the folder path to be created. For example "folder/newFolder/otherFolder"</param>
+        /// <param name="pathToFolder">It's the folder path to be created. For example "folder/newFolder/otherFolder"</param>
         /// <param name="token">Cancellation token</param>
         /// <returns>It returns the created resource</returns>
         /// <exception cref="ServiceNotAuthenticatedException">It is thrown when the service is used but not authenticated</exception>
@@ -121,7 +125,7 @@ namespace SimpleGoogleDrive
         /// <summary>
         /// It gets the full name, including the path and extension of a given resource
         /// </summary>
-        /// <param name="fileId">Google Drive resource</param>
+        /// <param name="resource">Google Drive resource</param>
         /// <param name="token">Cancellation token</param>
         /// <returns>It returns the full name of the resource</returns>
         public async Task<string> GetResourceFullName(DriveResource resource, CancellationToken token = default)

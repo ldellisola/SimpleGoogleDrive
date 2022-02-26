@@ -2,8 +2,14 @@
 
 namespace SimpleGoogleDrive.Models
 {
-    public class DriveAuthorizationSettings
+    public class DriveAuthSettings
     {
+        public enum AuthMode
+        {
+            Console,
+            Web
+        }
+
         /// <summary>
         /// 
         /// </summary>
@@ -11,12 +17,14 @@ namespace SimpleGoogleDrive.Models
         /// <param name="credentials">Credentials file from Google Cloud Console</param>
         /// <param name="userStore">Name of the data store where user authentication data will be stored</param>
         /// <param name="user">User name, tipically just "user"</param>
-        public DriveAuthorizationSettings(string applicationName, FileInfo credentials, string userStore, string user = "user")
+        /// <param name="mode">How the Authentication will be done, either in a web server or in the console</param>
+        public DriveAuthSettings(string applicationName, FileInfo credentials, string userStore, string user = "user", AuthMode mode = AuthMode.Web)
         {
             User = user;
             ApplicationName = applicationName;
             Credentials = credentials;
             UserStore = userStore;
+            Mode = mode;
         }
 
         /// <summary>
@@ -26,12 +34,14 @@ namespace SimpleGoogleDrive.Models
         /// <param name="clientSecret">Client secret from Google Cloud Console</param>
         /// <param name="userStore">Name of the data store where user authentication data will be stored</param>
         /// <param name="user">User name, tipically just "user"</param>
-        public DriveAuthorizationSettings(string applicationName, string clientSecret, string userStore, string user = "user")
+        /// <param name="mode">How the Authentication will be done, either in a web server or in the console</param>
+        public DriveAuthSettings(string applicationName, string clientSecret, string userStore, string user = "user", AuthMode mode = AuthMode.Web)
         {
             User = user;
             ApplicationName = applicationName;
             ClientSecret = clientSecret;
             UserStore = userStore;
+            Mode = mode;
         }
 
         /// <summary>
@@ -60,6 +70,11 @@ namespace SimpleGoogleDrive.Models
         /// Requested scope of Google APIs, usually just the Drive API
         /// </summary>
         public string[] Scope = { DriveService.Scope.Drive };
+        
+        /// <summary>
+        /// Authentication mode, wither through a local webserver or via console
+        /// </summary>
+        public AuthMode Mode { get; set; }
 
         /// <summary>
         /// It checks if the data is valid
