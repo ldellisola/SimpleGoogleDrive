@@ -4,7 +4,7 @@ using File = Google.Apis.Drive.v3.Data.File;
 
 namespace SimpleGoogleDrive
 {
-    internal static class Extensions
+    public static class Extensions
     {
         public static DriveResource.MimeType MimeType(this FileInfo f) =>
             // TODO: Add all file types
