@@ -11,4 +11,10 @@
     <ProjectReference Include="..\SimpleGoogleDrive\SimpleGoogleDrive.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Update="credentials.json">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
 </Project>

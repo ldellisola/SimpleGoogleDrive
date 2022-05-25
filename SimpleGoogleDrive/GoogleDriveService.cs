@@ -1,4 +1,5 @@
-﻿using Google.Apis.Auth.OAuth2;
+﻿using System.Linq.Expressions;
+using Google.Apis.Auth.OAuth2;
 using Google.Apis.Auth.OAuth2.Flows;
 using Google.Apis.Auth.OAuth2.Requests;
 using Google.Apis.Drive.v3;
@@ -451,15 +452,16 @@ namespace SimpleGoogleDrive
         /// </summary>
         /// <param name="resource">Resource to download</param>
         /// <param name="stream">Stream to store the data in</param>
+        /// <param name="onFailure"></param>
         /// <param name="token"></param>
+        /// <param name="onProgress"></param>
         /// <returns></returns>
         /// <exception cref="ServiceNotAuthenticatedException"></exception>
         public async Task DownloadResource(DriveResource resource, Stream stream, Action<long, long?>? onProgress = default,
             Action<Exception>? onFailure = default, CancellationToken token = default)
         {
             var request = (service?.Files.Get(resource.Id) ?? throw new ServiceNotAuthenticatedException());
-
-
+            
             request.MediaDownloader.ProgressChanged += prog =>
             {
                 if (prog.Status == Google.Apis.Download.DownloadStatus.Downloading && onProgress != default)
@@ -467,7 +469,7 @@ namespace SimpleGoogleDrive
                     onProgress(prog.BytesDownloaded, resource.Size);
                 }
             };
-
+            
             var response = await request.DownloadAsync(stream, token);
 
             if (response.Status == Google.Apis.Download.DownloadStatus.Failed && onFailure != default)
@@ -475,6 +477,97 @@ namespace SimpleGoogleDrive
                 onFailure(response.Exception);
             }
 
+        }
+
+        
+
+
+        /// <summary>
+        /// It exports a resource to a specific file
+        /// </summary>
+        /// <param name="pathToResource">Path to the resource on google drive</param>
+        /// <param name="destination">Local path where to store the resource</param>
+        /// <param name="token"></param>
+        /// <param name="exportType"></param>
+        /// <returns>true if the pathToResource is valid</returns>
+        public async Task<bool> ExportResource(
+            string pathToResource, string destination, DriveResource.MimeType exportType = default,
+            Action<long, long?>? onProgress = default,
+            Action<Exception>? onFailure = default, CancellationToken token = default)
+        {
+            var resource = await FindResource(pathToResource, token: token);
+            if (resource is null)
+                return false;
+
+            await ExportResource(resource, destination,exportType, onProgress, onFailure, token);
+            return true;
+        }
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="resource"></param>
+        /// <param name="stream"></param>
+        /// <param name="exportType"></param>
+        /// <param name="onProgress"></param>
+        /// <param name="onFailure"></param>
+        /// <param name="token"></param>
+        public async Task ExportResource(DriveResource resource, Stream stream, DriveResource.MimeType exportType = default,
+            Action<long, long?>? onProgress = default,
+            Action<Exception>? onFailure = default, CancellationToken token = default)
+        {
+            if (exportType is default(DriveResource.MimeType))
+                exportType = resource.Type.GetDefaultExportType() ??
+                             throw new ResourceCannotBeExportedException(resource);
+
+            if (resource.Size > 10 * 1e9)
+                throw new ResourceTooBigForExportException(resource);
+            
+            var request = service?.Files.Export(resource.Id,exportType.GetString()) ?? throw new ServiceNotAuthenticatedException();
+            
+            request.MediaDownloader.ProgressChanged += prog =>
+            {
+                if (prog.Status == Google.Apis.Download.DownloadStatus.Downloading && onProgress != default)
+                {
+                    onProgress(prog.BytesDownloaded, resource.Size);
+                }
+            };
+            
+            var response = await request.DownloadAsync(stream, token);
+
+            if (response.Status == Google.Apis.Download.DownloadStatus.Failed && onFailure != default)
+            {
+                onFailure(response.Exception);
+            }
+
+        }
+
+        /// <summary>
+        /// It downloads a resource to a specific file
+        /// </summary>
+        /// <param name="resource">Resource to download</param>
+        /// <param name="destination">Local path where to store the resource</param>
+        /// <param name="onFailure"></param>
+        /// <param name="token"></param>
+        /// <param name="exportType"></param>
+        /// <param name="onProgress"></param>
+        /// <returns></returns>
+        public async Task ExportResource(
+            DriveResource resource, string destination,DriveResource.MimeType exportType = default,
+            Action<long, long?>? onProgress = default,
+            Action<Exception>? onFailure = default, CancellationToken token = default)
+        {
+            var file = new FileInfo(destination);
+
+            MemoryStream stream = new MemoryStream();
+            await ExportResource(resource, stream, exportType, onProgress, onFailure, token);
+
+            if (!file.Exists && file.Directory is not null)
+                Directory.CreateDirectory(file.Directory.FullName);
+            
+            using (var fs = new FileStream(file.FullName, FileMode.Create))
+            {
+                stream.WriteTo(fs);
+            }
         }
 
         /// <summary>
@@ -494,9 +587,7 @@ namespace SimpleGoogleDrive
 
             if (!file.Exists)
                 Directory.CreateDirectory(file.Directory.FullName);
-
-
-
+            
             using (var fs = new FileStream(file.FullName, FileMode.Create))
             {
                 stream.WriteTo(fs);
