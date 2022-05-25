@@ -31,18 +31,25 @@ namespace SimpleGoogleDrive.Models
         /// 
         /// </summary>
         /// <param name="applicationName">Name of your application</param>
+        /// <param name="clientId">Client Id from Google Cloud Console</param>
         /// <param name="clientSecret">Client secret from Google Cloud Console</param>
         /// <param name="userStore">Name of the data store where user authentication data will be stored</param>
         /// <param name="user">User name, tipically just "user"</param>
         /// <param name="mode">How the Authentication will be done, either in a web server or in the console</param>
-        public DriveAuthSettings(string applicationName, string clientSecret, string userStore, string user = "user", AuthMode mode = AuthMode.Web)
+        public DriveAuthSettings(string applicationName,string clientId, string clientSecret, string userStore, string user = "user", AuthMode mode = AuthMode.Web)
         {
             User = user;
+            ClientId = clientId;
             ApplicationName = applicationName;
             ClientSecret = clientSecret;
             UserStore = userStore;
             Mode = mode;
         }
+
+        /// <summary>
+        /// Client Id from Google Cloud Console
+        /// </summary>
+        public string ClientId { get; set; }
 
         /// <summary>
         /// Name of your application

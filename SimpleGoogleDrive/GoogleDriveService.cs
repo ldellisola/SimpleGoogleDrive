@@ -36,13 +36,17 @@ namespace SimpleGoogleDrive
         /// <param name="token">Cancellation Token</param>
         public async Task Authenticate(CancellationToken token = default)
         {
-            var clientSecrets = new ClientSecrets();
+            ClientSecrets clientSecrets;
 
             if (settings.Credentials != null)
-                clientSecrets = (await GoogleClientSecrets.FromFileAsync(settings.Credentials?.FullName, token)).Secrets;
+                clientSecrets = (await GoogleClientSecrets.FromFileAsync(settings.Credentials?.FullName, token))
+                    .Secrets;
             else
-                clientSecrets.ClientSecret = settings.ClientSecret;
-            
+                clientSecrets = new ClientSecrets
+                {
+                    ClientId = settings.ClientId,
+                    ClientSecret = settings.ClientSecret,
+                };
 
             UserCredential credential = await GoogleWebAuthorizationBroker.AuthorizeAsync(
                 clientSecrets,
