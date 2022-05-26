@@ -5,18 +5,18 @@ namespace SimpleGoogleDrive
 
     internal class MimeTypeAttribute : Attribute
     {
-        public string value;
-        public DriveResource.MimeType? defaultExportTo;
+        public string Value;
+        public DriveResource.MimeType? DefaultExportTo;
 
         public MimeTypeAttribute(string value)
         {
-            this.value = value;
+            Value = value;
         }
         
         public MimeTypeAttribute(string value,DriveResource.MimeType defaultExportTo)
         {
-            this.value = value;
-            this.defaultExportTo = defaultExportTo;
+            Value = value;
+            DefaultExportTo = defaultExportTo;
         }
     }
 

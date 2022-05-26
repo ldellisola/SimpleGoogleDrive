@@ -4,27 +4,34 @@ namespace SimpleGoogleDrive
 {
     internal class PathStorage
     {
-        private static PathStorage? Reference { get; set; } = null;
-        private static string SerializedStorage = @"./PathStorage.json";
+        private static PathStorage? Reference { get; set; }
+        private static string _serializedStorage = @"./PathStorage.json";
         private static readonly bool SaveFile = true;
 
         /// <summary>
         /// Gets the instance of the Path Storage.
         /// </summary>
-        /// <param name="usePersistantStorage">If true, it will store a serialized version of the data to reload later</param>
-        /// <param name="persistanceStoragePath">If usePersistantStorage is true, then it will store the data in this path</param>
-        public static PathStorage GetInstance(bool usePersistantStorage = false, string? persistanceStoragePath = default)
+        /// <param name="usePersistentStorage">If true, it will store a serialized version of the data to reload later</param>
+        /// <param name="persistentStoragePath">If usePersistentStorage is true, then it will store the data in this path</param>
+        public static PathStorage GetInstance(bool usePersistentStorage = false, string? persistentStoragePath = default)
         {
             if (Reference != null)
                 return Reference;
 
-            if (persistanceStoragePath != null)
-                PathStorage.SerializedStorage = persistanceStoragePath;
+            if (persistentStoragePath != null)
+                _serializedStorage = persistentStoragePath;
 
-            if (usePersistantStorage && File.Exists(SerializedStorage))
+            if (usePersistentStorage && File.Exists(_serializedStorage))
             {
                 Reference = new PathStorage();
-                Reference.storage = JsonSerializer.Deserialize<Dictionary<string, string?>>(File.ReadAllText(SerializedStorage));
+                var serializedDic = File.ReadAllText(_serializedStorage);
+                var dictionaries = JsonSerializer.Deserialize<Dictionary<string, string>[]>(serializedDic);
+
+                Reference._idToPath = dictionaries?[0] ?? new Dictionary<string, string>();
+                Reference._pathToId = dictionaries?[1] ?? new Dictionary<string, string>();
+                
+                 
+                // Reference._storage = JsonSerializer.Deserialize<Dictionary<string, string?>>(serializedDic) ?? new Dictionary<string, string?>();
             }
             else
             {
@@ -41,31 +48,76 @@ namespace SimpleGoogleDrive
         {
             if (SaveFile)
             {
-                var buffer = JsonSerializer.Serialize(Reference?.storage);
-                File.WriteAllText(SerializedStorage, buffer);
+                var buffer = JsonSerializer.Serialize(new [] {Reference?._idToPath,Reference?._pathToId });
+                File.WriteAllText(_serializedStorage, buffer);
             }
         }
 
 
-        private Dictionary<string, string?> storage = new Dictionary<string, string?>();
+        private Dictionary<string, string> _idToPath = new();
+        private Dictionary<string, string> _pathToId = new();
 
-        public string? this[string? key]
+        public string? GetId(string path)
         {
-            get => storage!.GetValueOrDefault(key?.FormatPath(), null);
-            set { if (key != null) storage[key.FormatPath()] = value; }
+            return _pathToId.TryGetValue(path, out var id) switch
+            {
+                true => id,
+                false => null
+            };
         }
 
-        /// <summary>
-        /// It retrieves a path from the id
-        /// </summary>
-        /// <param name="id"></param>
-        /// <returns></returns>
-        public string? Key(string id)
+        public string? GetPath(string id)
         {
-            if (id == null) return null;
-
-            storage.TryGetValue(id, out string? ret);
-            return ret;
+            return _idToPath.TryGetValue(id, out string? path) switch
+            {
+                true => path,
+                false => null
+            };
         }
+        
+
+        public void Add(string id, string path)
+        {
+            path = path.FormatPath();
+            _pathToId[path] = id;
+            _idToPath[id] = path;
+        }
+
+        public void DeleteId(string id)
+        {
+            var path = _idToPath[id];
+            _idToPath.Remove(id);
+            _pathToId.Remove(path);
+        }
+
+        public void DeletePath(string path)
+        {
+            path = path.FormatPath();
+            var id = _pathToId[path];
+            _pathToId.Remove(path);
+            _idToPath.Remove(id);
+        }
+        
+
+        // private Dictionary<string, string?> _storage = new();
+        //
+        // public string? this[string? id]
+        // {
+        //     get => _storage!.GetValueOrDefault(id?.FormatPath(), null);
+        //     set { if (id != null) _storage[id] = value.FormatPath(); }
+        // }
+        //
+        // /// <summary>
+        // /// It retrieves a path from the id
+        // /// </summary>
+        // /// <param name="id"></param>
+        // /// <returns></returns>
+        // public string? Key(string? id)
+        // {
+        //     if (id is null || !_storage.TryGetValue(id, out var ret)) 
+        //         return null;
+        //     
+        //     return ret;
+        // }
     }
 }

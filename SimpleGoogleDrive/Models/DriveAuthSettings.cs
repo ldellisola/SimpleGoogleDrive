@@ -2,11 +2,25 @@
 
 namespace SimpleGoogleDrive.Models
 {
+    /// <summary>
+    /// Google Drive authentication and authorization settings
+    /// </summary>
     public class DriveAuthSettings
     {
+        /// <summary>
+        /// Modes to authenticate with the Google Drive API
+        /// </summary>
         public enum AuthMode
         {
+            /// <summary>
+            /// Auth over OOB. It creates a url in the console to login.
+            /// DEPRECATED and to be removed in October, see https://developers.googleblog.com/2022/02/making-oauth-flows-safer.html
+            /// </summary>
+            [Obsolete]
             Console,
+            /// <summary>
+            /// It opens a website on the browser to continue with the auth flow.
+            /// </summary>
             Web
         }
 
@@ -16,7 +30,7 @@ namespace SimpleGoogleDrive.Models
         /// <param name="applicationName">Name of your application</param>
         /// <param name="credentials">Credentials file from Google Cloud Console</param>
         /// <param name="userStore">Name of the data store where user authentication data will be stored</param>
-        /// <param name="user">User name, tipically just "user"</param>
+        /// <param name="user">User name, typically just "user"</param>
         /// <param name="mode">How the Authentication will be done, either in a web server or in the console</param>
         public DriveAuthSettings(string applicationName, FileInfo credentials, string userStore, string user = "user", AuthMode mode = AuthMode.Web)
         {
@@ -34,9 +48,9 @@ namespace SimpleGoogleDrive.Models
         /// <param name="clientId">Client Id from Google Cloud Console</param>
         /// <param name="clientSecret">Client secret from Google Cloud Console</param>
         /// <param name="userStore">Name of the data store where user authentication data will be stored</param>
-        /// <param name="user">User name, tipically just "user"</param>
+        /// <param name="user">User name, typically just "user"</param>
         /// <param name="mode">How the Authentication will be done, either in a web server or in the console</param>
-        public DriveAuthSettings(string applicationName,string clientId, string clientSecret, string userStore, string user = "user", AuthMode mode = AuthMode.Web)
+        public DriveAuthSettings(string applicationName,string? clientId, string clientSecret, string userStore, string user = "user", AuthMode mode = AuthMode.Web)
         {
             User = user;
             ClientId = clientId;
@@ -49,7 +63,7 @@ namespace SimpleGoogleDrive.Models
         /// <summary>
         /// Client Id from Google Cloud Console
         /// </summary>
-        public string ClientId { get; set; }
+        public string? ClientId { get; set; }
 
         /// <summary>
         /// Name of your application
@@ -71,7 +85,7 @@ namespace SimpleGoogleDrive.Models
         /// <summary>
         /// User name, tipically just "user"
         /// </summary>
-        public string User { get; set; } = "user";
+        public string User { get; set; }
 
         /// <summary>
         /// Requested scope of Google APIs, usually just the Drive API
@@ -89,7 +103,7 @@ namespace SimpleGoogleDrive.Models
         /// <returns>true if the data is valid</returns>
         public bool IsValid()
         {
-            return Scope.Length > 0 && (ClientSecret != null || (Credentials?.Exists ?? false));
+            return Scope.Length > 0 && ((ClientSecret is not null && ClientId is not null )|| (Credentials?.Exists ?? false));
         }
 
     }

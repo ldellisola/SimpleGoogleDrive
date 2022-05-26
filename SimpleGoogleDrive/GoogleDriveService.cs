@@ -1,70 +1,85 @@
-﻿using System.Linq.Expressions;
+﻿using System.Runtime.CompilerServices;
+using System.Text;
 using Google.Apis.Auth.OAuth2;
-using Google.Apis.Auth.OAuth2.Flows;
-using Google.Apis.Auth.OAuth2.Requests;
 using Google.Apis.Drive.v3;
+using Google.Apis.Drive.v3.Data;
 using Google.Apis.Services;
 using Google.Apis.Util.Store;
 using SimpleGoogleDrive.Exceptions;
 using SimpleGoogleDrive.Models;
+using File = Google.Apis.Drive.v3.Data.File;
 
 namespace SimpleGoogleDrive
 {
+    /// <summary>
+    /// Google Drive API
+    /// </summary>
     public class GoogleDriveService : IDisposable
     {
-        private readonly DriveAuthSettings settings;
-        private DriveService? service;
-        private readonly PathStorage storage;
-        private bool disposedValue;
+        private readonly DriveAuthSettings _settings;
+        private DriveService? _service;
+        private readonly PathStorage _storage;
+        private bool _disposedValue;
+        private readonly string _fields = "id, name, parents, mimeType, properties, size, trashed";
 
+        public int Calls = 0;
+
+        /// <summary>
+        /// Google Drive API
+        /// </summary>
+        /// <param name="settings"></param>
+        /// <param name="usePersistentStorage"></param>
+        /// <param name="persistentStoragePath"></param>
+        /// <exception cref="ArgumentException"></exception>
         public GoogleDriveService(DriveAuthSettings settings, bool usePersistentStorage = false, string? persistentStoragePath = default)
         {
-            storage = PathStorage.GetInstance(usePersistentStorage, persistentStoragePath);
+            _storage = PathStorage.GetInstance(usePersistentStorage, persistentStoragePath);
 
-            if (settings.IsValid())
-            {
-                this.settings = settings;
-            }
-            else
-            {
+            if (!settings.IsValid())
                 throw new ArgumentException("Invalid DriveAuthorizationSettings");
-            }
+                
+            _settings = settings;
         }
 
         /// <summary>
         /// It authenticates the services with Google's server
         /// </summary>
         /// <param name="token">Cancellation Token</param>
-        public async Task Authenticate(CancellationToken token = default)
+        public async Task<GoogleDriveService> Authenticate(CancellationToken token = default)
         {
             ClientSecrets clientSecrets;
 
-            if (settings.Credentials != null)
-                clientSecrets = (await GoogleClientSecrets.FromFileAsync(settings.Credentials?.FullName, token))
+            if (_settings.Credentials is not null)
+                clientSecrets = (await GoogleClientSecrets.FromFileAsync(_settings.Credentials?.FullName, token))
                     .Secrets;
             else
                 clientSecrets = new ClientSecrets
                 {
-                    ClientId = settings.ClientId,
-                    ClientSecret = settings.ClientSecret,
+                    ClientId = _settings.ClientId,
+                    ClientSecret = _settings.ClientSecret,
                 };
 
             UserCredential credential = await GoogleWebAuthorizationBroker.AuthorizeAsync(
                 clientSecrets,
-                settings.Scope,
-                settings.User,
+                _settings.Scope,
+                _settings.User,
                 token,
-                new FileDataStore(settings.UserStore),
-                settings.Mode == DriveAuthSettings.AuthMode.Console ? new PromptCodeReceiver() : new LocalServerCodeReceiver()
+                new FileDataStore(_settings.UserStore),
+                _settings.Mode switch
+                {
+                    DriveAuthSettings.AuthMode.Web => new LocalServerCodeReceiver(),
+                    DriveAuthSettings.AuthMode.Console => new PromptCodeReceiver(),
+                    _ => throw new ArgumentOutOfRangeException()
+                }
             );
 
-            service = new DriveService(new BaseClientService.Initializer()
+            _service = new DriveService(new BaseClientService.Initializer()
             {
                 HttpClientInitializer = credential,
-                ApplicationName = settings.ApplicationName
+                ApplicationName = _settings.ApplicationName
             });
 
-
+            return this;
         }
 
         /// <summary>
@@ -81,36 +96,33 @@ namespace SimpleGoogleDrive
         /// <param name="pathToFolder">It's the folder path to be created. For example "folder/newFolder/otherFolder"</param>
         /// <param name="token">Cancellation token</param>
         /// <returns>It returns the created resource</returns>
-        /// <exception cref="ServiceNotAuthenticatedException">It is thrown when the service is used but not authenticated</exception>
         /// <exception cref="ResourceAlreadyExistsException">It is thrown if the folder already exists</exception>
         public async Task<DriveResource?> CreateFolder(string pathToFolder, CancellationToken token = default)
         {
+            ArgumentNullException.ThrowIfNull(_service);
             var resource = await FindFolder(pathToFolder, token: token);
 
-            if (resource != null)
+            if (resource is not null)
                 throw new ResourceAlreadyExistsException(resource);
 
             var (path, folder) = pathToFolder.SplitPathFromResource();
             string? parentId = null;
 
-            if (path != null)
-            {
+            if (path is not null)
                 parentId = (await FindFolder(path, token: token))?.Id ?? (await CreateFolder(path, token))?.Id;
-            }
 
-            var metadata = new Google.Apis.Drive.v3.Data.File()
+            var metadata = new File()
             {
                 Name = folder,
                 MimeType = DriveResource.MimeType.Folder.GetString(),
                 Parents = parentId != null ? new List<string?>() { parentId } : default
             };
 
-            var request = (service?.Files.Create(metadata) ?? throw new ServiceNotAuthenticatedException());
-            request.Fields = "*";
+            var request = _service.Files.Create(metadata);
+            request.Fields = _fields;
             var response = await request.ExecuteAsync(token);
 
-            storage[pathToFolder] = response.Id;
-
+            _storage.Add(response.Id, pathToFolder);
             return MapToDriveResource(response);
 
         }
@@ -121,10 +133,14 @@ namespace SimpleGoogleDrive
         /// <param name="fileId">Id of the Google Drive resource</param>
         /// <param name="token">Cancellation token</param>
         /// <returns>It returns the full name of the resource</returns>
-        private async Task<string> GetResourceFullName(string fileId, CancellationToken token = default)
+        private async Task<string?> GetResourceFullName(string fileId, CancellationToken token = default)
         {
             var resource = await GetResource(fileId, token);
-            return await GetResourceFullName(resource);
+            return resource switch
+            {
+                null => null,
+                _ => await GetResourceFullName(resource)
+            };
         }
 
         /// <summary>
@@ -133,23 +149,27 @@ namespace SimpleGoogleDrive
         /// <param name="resource">Google Drive resource</param>
         /// <param name="token">Cancellation token</param>
         /// <returns>It returns the full name of the resource</returns>
-        public async Task<string> GetResourceFullName(DriveResource resource, CancellationToken token = default)
+        public async Task<string> GetResourceFullName(DriveResource? resource, CancellationToken token = default)
         {
-            if (storage.Key(resource.Id) != null)
-            {
-                return storage.Key(resource.Id);
-            }
+            ArgumentNullException.ThrowIfNull(resource);
+            var cachedResult = _storage.GetPath(resource.Id);
+            if (cachedResult is not null)
+                return cachedResult;
 
-            var notInRoot = (await QueryResources(new QueryBuilder().IsNotParent("root").And().IsParent(resource.Parent).And().IsName(resource.Name))).Count() != 0;
+            var inRootQuery = new QueryBuilder()
+                .IsParent("root")
+                .And()
+                .IsName(resource.Name);
 
-            if (resource.Parent != null && notInRoot)
-            {
-                return (storage.Key(resource.Parent) ?? await GetResourceFullName(resource.Parent, token)) + "/" + resource.Name;
-            }
-            else
-            {
+            var inRoot = await QueryResources(inRootQuery).AnyAsync(token);
+
+            if (inRoot)
                 return resource.Name;
-            }
+            
+            var parentFullName = _storage.GetPath(resource.Parent!) ?? await GetResourceFullName(resource.Parent!, token);
+            var fullName = new StringBuilder(parentFullName!).Append(resource.Name).ToString();
+            _storage.Add(resource.Id,fullName);
+            return fullName;
         }
 
         /// <summary>
@@ -158,14 +178,15 @@ namespace SimpleGoogleDrive
         /// <param name="id">Id of the file</param>
         /// <param name="token">Cancellation token</param>
         /// <returns>The desired resource</returns>
-        /// <exception cref="ServiceNotAuthenticatedException">Throws if the service was not authenticated</exception>
-        /// <exception cref="ResourceDoesNotExistException">Throws if the id does not match with any resource</exception>
-        public async Task<DriveResource> GetResource(string id, CancellationToken token = default)
+        public async Task<DriveResource?> GetResource(string? id, CancellationToken token = default)
         {
-            var request = service?.Files.Get(id) ?? throw new ServiceNotAuthenticatedException();
-            request.Fields = "*";
+            ArgumentNullException.ThrowIfNull(_service);
+            ArgumentNullException.ThrowIfNull(id);
+            Calls++;
+            var request = _service.Files.Get(id);
+            request.Fields = _fields;
 
-            var resource = await request.ExecuteAsync(token) ?? throw new ResourceDoesNotExistException(id);
+            var resource = await request.ExecuteAsync(token);
 
             return MapToDriveResource(resource);
         }
@@ -175,17 +196,22 @@ namespace SimpleGoogleDrive
         /// </summary>
         /// <param name="resource">Google Drive resource</param>
         /// <returns>A DriveResource object</returns>
-        private DriveResource MapToDriveResource(Google.Apis.Drive.v3.Data.File resource)
+        private DriveResource? MapToDriveResource(File? resource)
         {
-            return new DriveResource(this)
+            return resource switch
             {
-                Id = resource.Id,
-                Name = resource.Name,
-                Parent = resource.Parents?.FirstOrDefault(),
-                Type = resource.MimeType(),
-                Properties = resource.Properties?.ToDictionary(t => t.Key, t => t.Value) ?? new Dictionary<string, string>(),
-                Size = resource.Size,
-                IsTrashed = resource.Trashed ?? false,
+                null => null,
+                _ => new DriveResource(this)
+                {
+                    Id = resource.Id,
+                    Name = resource.Name,
+                    Parent = resource.Parents?.FirstOrDefault(),
+                    Type = resource.MimeType(),
+                    Properties = resource.Properties?.ToDictionary(t => t.Key, t => t.Value) ??
+                                 new Dictionary<string, string>(),
+                    Size = resource.Size,
+                    IsTrashed = resource.Trashed ?? false,
+                }
             };
         }
 
@@ -195,42 +221,43 @@ namespace SimpleGoogleDrive
         /// <param name="queryBuilder">Query</param>
         /// <param name="token">Cancellation token</param>
         /// <returns>A list of Drive Resources</returns>
-        /// <exception cref="ServiceNotAuthenticatedException">Throws if the service was not authenticated</exception>
-        public async Task<IEnumerable<DriveResource>> QueryResources(QueryBuilder queryBuilder, CancellationToken token = default)
+        public async IAsyncEnumerable<DriveResource> QueryResources(QueryBuilder queryBuilder, [EnumeratorCancellation] CancellationToken token = default)
         {
-            var resources = new List<Google.Apis.Drive.v3.Data.File>();
+            ArgumentNullException.ThrowIfNull(_service);
             string? pageToken = null;
-
             do
             {
-                var request = service?.Files.List() ?? throw new ServiceNotAuthenticatedException();
+                Calls++;
+                FilesResource.ListRequest request = _service.Files.List();
                 request.Q = queryBuilder.Build();
                 request.PageToken = pageToken;
-                request.Fields = "*";
+                request.Fields = $"nextPageToken,files({_fields})";
                 request.PageSize = 1000;
 
-                var result = await request.ExecuteAsync(token);
+                FileList result = await request.ExecuteAsync(token);
                 pageToken = result.NextPageToken;
-                resources.AddRange(result.Files);
+
+                foreach (File resource in result.Files) 
+                    yield return MapToDriveResource(resource)!;
 
             } while (pageToken != null);
-
-            return resources.ConvertAll(t => MapToDriveResource(t));
         }
 
         /// <summary>
         /// It finds a folder within Google Drive
         /// </summary>
         /// <param name="pathToFolder">Path on Google Drive to the folder</param>
+        /// <param name="parameters"></param>
         /// <param name="token">Cancellation Token</param>
         /// <returns>The resource, if the folder exists</returns>
-        public async Task<DriveResource?> FindFolder(string? pathToFolder, QueryBuilder? parameters = default, CancellationToken token = default)
+        public async Task<DriveResource?> FindFolder(string pathToFolder, QueryBuilder? parameters = default, CancellationToken token = default)
         {
-            if (storage[pathToFolder] != null)
+            var folderId = _storage.GetId(pathToFolder);
+            if (folderId is not null)
             {
-                var folder = await GetResource(storage[pathToFolder], token);
+                var folder = await GetResource(folderId, token);
 
-                if (folder != null && !folder.IsTrashed)
+                if (folder is not null && !folder.IsTrashed)
                     return folder;
             }
 
@@ -238,8 +265,8 @@ namespace SimpleGoogleDrive
 
             var resource = await FindResource(pathToFolder, query, token);
 
-            if (resource != null && !resource.IsTrashed)
-                storage[pathToFolder] = resource.Id;
+            if (resource is not null && !resource.IsTrashed)
+                _storage.Add(resource.Id,pathToFolder);
 
             return resource;
         }
@@ -248,13 +275,12 @@ namespace SimpleGoogleDrive
         /// It finds a File within Google Drive
         /// </summary>
         /// <param name="pathToFile">Path in GoogleDrive to the file</param>
+        /// <param name="parameters">Extra query parameters</param>
         /// <param name="token">Cancellation Token</param>
         /// <returns>the resource, if it exists</returns>
         public Task<DriveResource?> FindFile(string? pathToFile, QueryBuilder? parameters = default, CancellationToken token = default)
         {
-
             var query = new QueryBuilder().IsNotType(DriveResource.MimeType.Folder).And(parameters);
-
             return FindResource(pathToFile, query, token);
 
         }
@@ -263,33 +289,29 @@ namespace SimpleGoogleDrive
         /// It finds a resource form Google drive using its path
         /// </summary>
         /// <param name="pathToResource">Path on google drive to the resource</param>
+        /// <param name="parameters"></param>
         /// <param name="token">Cancellation token</param>
         /// <returns>The requested Resource</returns>
-        /// <exception cref="ServiceNotAuthenticatedException">Throws if the service was not authenticated</exception>
         public async Task<DriveResource?> FindResource(string? pathToResource, QueryBuilder? parameters = default, CancellationToken token = default)
         {
-            if (pathToResource == null)
+            if (pathToResource is null)
                 return default;
 
             var (parentFolder, resource) = pathToResource.SplitPathFromResource();
 
             var parentFolderId = "root";
 
-            if (parentFolder != null)
+            if (parentFolder is not null)
             {
                 parentFolderId = (await FindFolder(parentFolder, null, token))?.Id;
 
-                if (parentFolderId == null)
-                    throw new ResourceDoesNotExistException(parentFolderId);
+                if (parentFolderId is null)
+                    return null;
             }
-
-
+            
             var query = new QueryBuilder().IsName(resource).And().IsParent(parentFolderId).And(parameters);
-
-
-            var result = await QueryResources(query, token);
-
-            return result.FirstOrDefault();
+            
+            return await QueryResources(query, token).FirstOrDefaultAsync(token);
         }
 
         /// <summary>
@@ -297,20 +319,21 @@ namespace SimpleGoogleDrive
         /// </summary>
         /// <param name="resource">Resource to be deleted</param>
         /// <param name="token">Cancellation token</param>
-        /// <exception cref="ServiceNotAuthenticatedException">It will be thrown if the service wasn't authenticated</exception>
         public async Task DeleteResource(DriveResource resource, CancellationToken token = default)
         {
-            await (service?.Files.Delete(resource.Id).ExecuteAsync(token) ?? throw new ServiceNotAuthenticatedException());
-            if (resource.Type == DriveResource.MimeType.Folder)
-            {
-                storage[await resource.GetFullName()] = null;
-            }
+            ArgumentNullException.ThrowIfNull(_service);
+            await _service.Files.Delete(resource.Id).ExecuteAsync(token);
+            
+            if (resource.Type is DriveResource.MimeType.Folder)
+                _storage.DeleteId(resource.Id);
+
         }
 
         /// <summary>
         /// It deletes a resource from Google Drive
         /// </summary>
         /// <param name="pathToResource">Path on Google Drive to the resource</param>
+        /// <param name="parameters">Extra query parameters</param>
         /// <param name="token">Cancellation token</param>
         /// <returns></returns>
         public async Task DeleteResource(string pathToResource, QueryBuilder? parameters = default, CancellationToken token = default)
@@ -319,17 +342,16 @@ namespace SimpleGoogleDrive
 
             var query = new QueryBuilder().IsName(resourceName).And(parameters);
 
-            if (path != null)
+            if (path is not null)
             {
                 var folderResource = await FindFolder(path, null, token);
-                if (folderResource != null)
+                if (folderResource is not null)
                     query.IsParent(folderResource.Id);
-
             }
 
-            var resource = (await QueryResources(query, token)).FirstOrDefault();
+            var resource = await QueryResources(query, token).FirstOrDefaultAsync(token);
 
-            if (resource != null)
+            if (resource is not null)
                 await DeleteResource(resource, token);
         }
 
@@ -343,19 +365,20 @@ namespace SimpleGoogleDrive
         /// <param name="onProgress">Function that will run during upload. The parameters are the bytes sent and the total file size</param>
         /// <param name="onFailure">Function that will run if the upload fails. The parameter is the exception thrown</param>
         /// <param name="token"></param>
-        /// <returns>Returns the Drive resource if the upload was successul. Null otherwise</returns>
-        /// <exception cref="ServiceNotAuthenticatedException"></exception>
+        /// <returns>Returns the Drive resource if the upload was successful. Null otherwise</returns>
         public async Task<DriveResource?> CreateFile(FileStream data, string mimeType, string destination, Dictionary<string, string>? properties = default,
             Action<long, long>? onProgress = default, Action<Exception>? onFailure = default, CancellationToken token = default)
         {
+            ArgumentNullException.ThrowIfNull(_service);
+            
             var (destinationPath, destinationName) = destination.SplitPathFromResource();
 
             string? parentId = null;
 
-            if (destinationPath != null)
-                parentId = ((await FindFolder(destinationPath, token: token)) ?? (await CreateFolder(destinationPath, token)))?.Id;
+            if (destinationPath is not null)
+                parentId = (await FindFolder(destinationPath, token: token) ?? await CreateFolder(destinationPath, token))?.Id;
 
-            var fileMetadata = new Google.Apis.Drive.v3.Data.File()
+            var fileMetadata = new File()
             {
                 Name = destinationName,
                 Parents = parentId != null ? new List<string>() { parentId } : default,
@@ -363,27 +386,27 @@ namespace SimpleGoogleDrive
             };
 
 
-            var request = service?.Files.Create(fileMetadata, data, mimeType) ?? throw new ServiceNotAuthenticatedException();
+            var request = _service.Files.Create(fileMetadata, data, mimeType);
 
             DriveResource? resource = null;
-            request.Fields = "*";
+            request.Fields = _fields;
 
             request.ResponseReceived += rest => resource = MapToDriveResource(rest);
 
-            request.ProgressChanged += prog =>
+            request.ProgressChanged += progress =>
             {
-                if (prog.Status == Google.Apis.Upload.UploadStatus.Uploading && onProgress != null)
+                if (progress.Status == Google.Apis.Upload.UploadStatus.Uploading && onProgress != null)
                 {
-                    onProgress(prog.BytesSent, request.ContentStream.Length);
+                    onProgress(progress.BytesSent, request.ContentStream.Length);
                 }
-                else if (prog.Status == Google.Apis.Upload.UploadStatus.Failed && onFailure != null)
+                else if (progress.Status == Google.Apis.Upload.UploadStatus.Failed && onFailure != null)
                 {
-                    onFailure(prog.Exception);
+                    onFailure(progress.Exception);
                 }
             };
 
-            var result = await request.UploadAsync(token);
-
+            await request.UploadAsync(token);
+            
             return resource;
         }
 
@@ -397,7 +420,6 @@ namespace SimpleGoogleDrive
         /// <param name="onFailure">Function that will run if the upload fails. The parameter is the exception thrown</param>
         /// <param name="token"></param>
         /// <returns>Returns the Drive resource if the upload was successul. Null otherwise</returns>
-        /// <exception cref="ServiceNotAuthenticatedException"></exception>
         public async Task<DriveResource?> CreateFile(FileInfo file, string destination, Dictionary<string, string>? properties = default,
             Action<long, long>? onProgress = default, Action<Exception>? onFailure = default, CancellationToken token = default)
         {
@@ -416,6 +438,8 @@ namespace SimpleGoogleDrive
         /// </summary>
         /// <param name="pathToResource">Path to the resource on google drive</param>
         /// <param name="stream">Stream to store the data in</param>
+        /// <param name="onProgress">Function to run on progress updates. The parameters are the downloaded bytes and total bytes</param>
+        /// <param name="onFailure">Function to run on Failure</param>
         /// <param name="token"></param>
         /// <returns>true if the pathToResource is valid</returns>
         public async Task<bool> DownloadResource(string pathToResource, MemoryStream stream, Action<long, long?>? onProgress = default,
@@ -434,6 +458,8 @@ namespace SimpleGoogleDrive
         /// </summary>
         /// <param name="pathToResource">Path to the resource on google drive</param>
         /// <param name="destination">Local path where to store the resource</param>
+        /// <param name="onProgress">Function to run on progress updates. The parameters are the downloaded bytes and total bytes</param>
+        /// <param name="onFailure">Function to run on Failure</param>
         /// <param name="token"></param>
         /// <returns>true if the pathToResource is valid</returns>
         public async Task<bool> DownloadResource(string pathToResource, string destination, Action<long, long?>? onProgress = default,
@@ -452,30 +478,26 @@ namespace SimpleGoogleDrive
         /// </summary>
         /// <param name="resource">Resource to download</param>
         /// <param name="stream">Stream to store the data in</param>
-        /// <param name="onFailure"></param>
+        /// <param name="onProgress">Function to run on progress updates. The parameters are the downloaded bytes and total bytes</param>
+        /// <param name="onFailure">Function to run on Failure</param>
         /// <param name="token"></param>
-        /// <param name="onProgress"></param>
-        /// <returns></returns>
-        /// <exception cref="ServiceNotAuthenticatedException"></exception>
         public async Task DownloadResource(DriveResource resource, Stream stream, Action<long, long?>? onProgress = default,
             Action<Exception>? onFailure = default, CancellationToken token = default)
         {
-            var request = (service?.Files.Get(resource.Id) ?? throw new ServiceNotAuthenticatedException());
+            ArgumentNullException.ThrowIfNull(_service);
             
-            request.MediaDownloader.ProgressChanged += prog =>
+            var request = _service.Files.Get(resource.Id);
+            
+            request.MediaDownloader.ProgressChanged += progress =>
             {
-                if (prog.Status == Google.Apis.Download.DownloadStatus.Downloading && onProgress != default)
-                {
-                    onProgress(prog.BytesDownloaded, resource.Size);
-                }
+                if (progress.Status == Google.Apis.Download.DownloadStatus.Downloading && onProgress != default)
+                    onProgress(progress.BytesDownloaded, resource.Size);
             };
             
             var response = await request.DownloadAsync(stream, token);
 
             if (response.Status == Google.Apis.Download.DownloadStatus.Failed && onFailure != default)
-            {
                 onFailure(response.Exception);
-            }
 
         }
 
@@ -487,8 +509,10 @@ namespace SimpleGoogleDrive
         /// </summary>
         /// <param name="pathToResource">Path to the resource on google drive</param>
         /// <param name="destination">Local path where to store the resource</param>
+        /// <param name="exportType">Mime type to export the resource</param>
+        /// <param name="onProgress">Function to run on progress updates. The parameters are the downloaded bytes and total bytes</param>
+        /// <param name="onFailure">Function to run on Failure</param>
         /// <param name="token"></param>
-        /// <param name="exportType"></param>
         /// <returns>true if the pathToResource is valid</returns>
         public async Task<bool> ExportResource(
             string pathToResource, string destination, DriveResource.MimeType exportType = default,
@@ -503,38 +527,39 @@ namespace SimpleGoogleDrive
             return true;
         }
         /// <summary>
-        /// 
+        /// It exports a resource to a specific file
         /// </summary>
-        /// <param name="resource"></param>
-        /// <param name="stream"></param>
-        /// <param name="exportType"></param>
-        /// <param name="onProgress"></param>
-        /// <param name="onFailure"></param>
+        /// <param name="resource">Resource on google drive</param>
+        /// <param name="stream">Stream to store the data</param>
+        /// <param name="exportType">Mime type to export the resource</param>
+        /// <param name="onProgress">Function to run on progress updates. The parameters are the downloaded bytes and total bytes</param>
+        /// <param name="onFailure">Function to run on Failure</param>
         /// <param name="token"></param>
         public async Task ExportResource(DriveResource resource, Stream stream, DriveResource.MimeType exportType = default,
             Action<long, long?>? onProgress = default,
             Action<Exception>? onFailure = default, CancellationToken token = default)
         {
+            ArgumentNullException.ThrowIfNull(_service);
             if (exportType is default(DriveResource.MimeType))
                 exportType = resource.Type.GetDefaultExportType() ??
                              throw new ResourceCannotBeExportedException(resource);
 
             if (resource.Size > 10 * 1e9)
                 throw new ResourceTooBigForExportException(resource);
+
+            var request = _service.Files.Export(resource.Id, exportType.GetString());
             
-            var request = service?.Files.Export(resource.Id,exportType.GetString()) ?? throw new ServiceNotAuthenticatedException();
-            
-            request.MediaDownloader.ProgressChanged += prog =>
+            request.MediaDownloader.ProgressChanged += progress =>
             {
-                if (prog.Status == Google.Apis.Download.DownloadStatus.Downloading && onProgress != default)
+                if (progress.Status is Google.Apis.Download.DownloadStatus.Downloading && onProgress != default)
                 {
-                    onProgress(prog.BytesDownloaded, resource.Size);
+                    onProgress(progress.BytesDownloaded, resource.Size);
                 }
             };
             
             var response = await request.DownloadAsync(stream, token);
 
-            if (response.Status == Google.Apis.Download.DownloadStatus.Failed && onFailure != default)
+            if (response.Status is Google.Apis.Download.DownloadStatus.Failed && onFailure != default)
             {
                 onFailure(response.Exception);
             }
@@ -575,6 +600,8 @@ namespace SimpleGoogleDrive
         /// </summary>
         /// <param name="resource">Resource to download</param>
         /// <param name="destination">Local path where to store the resource</param>
+        /// <param name="onProgress">Function to run on progress updates. The parameters are the downloaded bytes and total bytes</param>
+        /// <param name="onFailure">Function to run on Failure</param>
         /// <param name="token"></param>
         /// <returns></returns>
         public async Task DownloadResource(DriveResource resource, string destination, Action<long, long?>? onProgress = default,
@@ -585,13 +612,10 @@ namespace SimpleGoogleDrive
             MemoryStream stream = new MemoryStream();
             await DownloadResource(resource, stream, onProgress, onFailure, token);
 
-            if (!file.Exists)
+            if (!file.Exists && file.Directory is not null)
                 Directory.CreateDirectory(file.Directory.FullName);
             
-            using (var fs = new FileStream(file.FullName, FileMode.Create))
-            {
-                stream.WriteTo(fs);
-            }
+            using (var fs = new FileStream(file.FullName, FileMode.Create)) stream.WriteTo(fs);
         }
 
         /// <summary>
@@ -616,22 +640,20 @@ namespace SimpleGoogleDrive
         /// <param name="destination">parent folder to copy to</param>
         /// <param name="token"></param>
         /// <returns></returns>
-        /// <exception cref="ServiceNotAuthenticatedException"></exception>
         public async Task<DriveResource?> CopyResource(DriveResource resource, DriveResource? destination, CancellationToken token = default)
         {
-
-            if (destination != null && destination.Type != DriveResource.MimeType.Folder)
+            ArgumentNullException.ThrowIfNull(_service);
+            if (destination is not null && destination.Type is not DriveResource.MimeType.Folder)
                 return null;
-
-
-            var metadata = new Google.Apis.Drive.v3.Data.File
+            
+            var metadata = new File
             {
-                Name = resource?.Name,
+                Name = resource.Name,
                 Parents = new List<string> { destination?.Id ?? "root" }
             };
 
-            var request = service?.Files.Copy(metadata, resource.Id) ?? throw new ServiceNotAuthenticatedException();
-            request.Fields = "*";
+            var request = _service.Files.Copy(metadata, resource.Id);
+            request.Fields = _fields;
 
             return MapToDriveResource(await request.ExecuteAsync(token));
 
@@ -643,56 +665,61 @@ namespace SimpleGoogleDrive
         /// <param name="resource">resource with the new data</param>
         /// <param name="token"></param>
         /// <returns></returns>
-        /// <exception cref="ServiceNotAuthenticatedException"></exception>
         public async Task<DriveResource?> UpdateResource(DriveResource? resource, CancellationToken token = default)
         {
-            if (resource == null)
+            ArgumentNullException.ThrowIfNull(_service);
+            
+            if (resource is null)
                 return null;
 
-            var metadata = new Google.Apis.Drive.v3.Data.File()
+            var metadata = new File()
             {
                 Name = resource.Name,
                 Properties = resource.Properties
             };
 
-            var request = service?.Files.Update(metadata, resource.Id) ?? throw new ServiceNotAuthenticatedException();
-            request.Fields = "*";
+            var request = _service.Files.Update(metadata, resource.Id);
+            request.Fields = _fields;
 
             return MapToDriveResource(await request.ExecuteAsync(token));
         }
 
         /// <summary>
-        /// It will update the name or the properties of the resource
+        /// It updates a resource
         /// </summary>
-        /// <param name="resource">resource with the new data</param>
+        /// <param name="resource">Resource with the new data</param>
+        /// <param name="content">New content for the resource</param>
+        /// <param name="contentType">New content type</param>
+        /// <param name="onProgress">Function to run on progress updates. The parameters are the downloaded bytes and total bytes</param>
+        /// <param name="onFailure">Function to run on Failure</param>
         /// <param name="token"></param>
         /// <returns></returns>
-        /// <exception cref="ServiceNotAuthenticatedException"></exception>
-        public async Task<DriveResource?> UpdateResource(DriveResource? resource, Stream content, string contentType,
+        public async Task<DriveResource?> UpdateResource(DriveResource? resource, Stream content, DriveResource.MimeType contentType,
             Action<long, long>? onProgress = default, Action<Exception>? onFailure = default, CancellationToken token = default)
         {
-            if (resource == null)
+            ArgumentNullException.ThrowIfNull(_service);
+            if (resource is null)
                 return null;
 
-            var metadata = new Google.Apis.Drive.v3.Data.File()
+            var metadata = new File()
             {
                 Name = resource.Name,
                 Properties = resource.Properties
             };
 
-            var request = service?.Files.Update(metadata, resource.Id, content, contentType) ?? throw new ServiceNotAuthenticatedException();
-            request.Fields = "*";
+            var request = _service.Files.Update(metadata, resource.Id, content, contentType.GetString());
+            request.Fields = _fields;
             request.ResponseReceived += res => resource = MapToDriveResource(res);
 
-            request.ProgressChanged += prog =>
+            request.ProgressChanged += progress =>
             {
-                if (prog.Status == Google.Apis.Upload.UploadStatus.Uploading && onProgress != null)
+                if (progress.Status is Google.Apis.Upload.UploadStatus.Uploading && onProgress is not null)
                 {
-                    onProgress(prog.BytesSent, request.ContentStream.Length);
+                    onProgress(progress.BytesSent, request.ContentStream.Length);
                 }
-                else if (prog.Status == Google.Apis.Upload.UploadStatus.Failed && onFailure != null)
+                else if (progress.Status is Google.Apis.Upload.UploadStatus.Failed && onFailure is not null)
                 {
-                    onFailure(prog.Exception);
+                    onFailure(progress.Exception);
                 }
             };
 
@@ -701,24 +728,27 @@ namespace SimpleGoogleDrive
             return resource;
         }
 
+        /// <summary>
+        /// Dispose service and store PathStorage
+        /// </summary>
+        /// <param name="disposing"></param>
         protected virtual void Dispose(bool disposing)
         {
-            if (!disposedValue)
+            if (!_disposedValue)
             {
                 if (disposing)
                 {
-                    // TODO: dispose managed state (managed objects)
-                    service?.Dispose();
+                    _service?.Dispose();
                     Stop();
                 }
-
-                // TODO: free unmanaged resources (unmanaged objects) and override finalizer
-                // TODO: set large fields to null
-
-                disposedValue = true;
+                
+                _disposedValue = true;
             }
         }
 
+        /// <summary>
+        /// Dispose service and store PathStorage
+        /// </summary>
         public void Dispose()
         {
             // Do not change this code. Put cleanup code in 'Dispose(bool disposing)' method

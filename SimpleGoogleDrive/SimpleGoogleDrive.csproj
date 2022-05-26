@@ -20,6 +20,10 @@
     <PackageVersion>0.3.1</PackageVersion>
   </PropertyGroup>
 
+  <PropertyGroup Condition=" '$(Configuration)' == 'Release' ">
+    <DebugSymbols>true</DebugSymbols>
+  </PropertyGroup>
+
   <ItemGroup>
     <None Include="..\README.md">
       <Pack>True</Pack>
@@ -30,6 +34,8 @@
   <ItemGroup>
     <PackageReference Include="Google.Apis.Auth" Version="1.57.0" />
     <PackageReference Include="Google.Apis.Drive.v3" Version="1.57.0.2684" />
+    <PackageReference Include="Polly" Version="7.2.3" />
+    <PackageReference Include="System.Linq.Async" Version="6.0.1" />
   </ItemGroup>
 
 </Project>

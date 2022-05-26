@@ -1,73 +1,93 @@
 ﻿using System.Globalization;
+using System.Reflection;
 using SimpleGoogleDrive.Models;
 using File = Google.Apis.Drive.v3.Data.File;
 
 namespace SimpleGoogleDrive
 {
+    /// <summary>
+    /// Extension methods
+    /// </summary>
     public static class Extensions
     {
-        public static DriveResource.MimeType MimeType(this FileInfo f) =>
-            // TODO: Add all file types
-            f.Extension.ToLowerInvariant() switch
+        /// <summary>
+        /// It gets the expected Google Mime Type for a GoogleDriveResource
+        /// </summary>
+        /// <param name="file"></param>
+        /// <returns></returns>
+        public static DriveResource.MimeType MimeType(this FileInfo file) =>
+            // TODO: Add all GoogleDriveResource types
+            file.Extension.ToLowerInvariant() switch
             {
-                ".mkv" => DriveResource.MimeType.MKV,
-                ".flv" => DriveResource.MimeType.FLV,
-                ".mp4" => DriveResource.MimeType.MP4,
-                ".mov" => DriveResource.MimeType.MOV,
-                ".avi" => DriveResource.MimeType.AVI,
-                ".wmv" => DriveResource.MimeType.WMV,
-                ".txt" => DriveResource.MimeType.TXT,
-                ".zip" => DriveResource.MimeType.ZIP,
-                ".pdf" => DriveResource.MimeType.PDF,
+                ".mkv" => DriveResource.MimeType.Mkv,
+                ".flv" => DriveResource.MimeType.Flv,
+                ".mp4" => DriveResource.MimeType.Mp4,
+                ".mov" => DriveResource.MimeType.Mov,
+                ".avi" => DriveResource.MimeType.Avi,
+                ".wmv" => DriveResource.MimeType.Wmv,
+                ".txt" => DriveResource.MimeType.Txt,
+                ".zip" => DriveResource.MimeType.Zip,
+                ".pdf" => DriveResource.MimeType.Pdf,
                 _ => DriveResource.MimeType.Unknown
             };
 
-        public static DriveResource.MimeType MimeType(this File f)
+        /// <summary>
+        /// It gets the Mimetype of a Google Drive Resource
+        /// </summary>
+        /// <param name="googleDriveResource">Google Drive Resource</param>
+        /// <returns></returns>
+        public static DriveResource.MimeType MimeType(this File googleDriveResource)
         {
             var comp = StringComparer.Create(CultureInfo.InvariantCulture, true);
-            return Enum.GetValues<DriveResource.MimeType>().FirstOrDefault(t => comp.Compare(t.GetString(), f.MimeType) == 0, DriveResource.MimeType.Unknown);
+            return Enum.GetValues<DriveResource.MimeType>()
+                .FirstOrDefault(t => comp.Compare(t.GetString(), googleDriveResource.MimeType) == 0, DriveResource.MimeType.Unknown);
         }
 
-        public static string GetString(this DriveResource.MimeType value)
+        /// <summary>
+        /// It Gets the string form of a Mime type
+        /// </summary>
+        /// <param name="mimeType"></param>
+        /// <returns></returns>
+        public static string GetString(this DriveResource.MimeType mimeType)
         {
             // Get the type
-            Type type = value.GetType();
+            Type type = mimeType.GetType();
 
             // Get fieldinfo for this type
-            var fieldInfo = type.GetField(value.ToString());
+            var fieldInfo = type.GetField(mimeType.ToString());
 
             if (fieldInfo is null)
-            {
-                return "";
-            }
-            // Get the stringvalue attributes
-            MimeTypeAttribute[]? attribs = fieldInfo.GetCustomAttributes(
-                typeof(MimeTypeAttribute), false) as MimeTypeAttribute[];
-
-            // Return the first if there was a match.
-            return attribs?[0].value ?? DriveResource.MimeType.Unknown.GetString();
-        }
-
-        public static DriveResource.MimeType? GetDefaultExportType(this DriveResource.MimeType value)
-        {
-            // Get the type
-            Type type = value.GetType();
-
-            // Get fieldinfo for this type
-            var fieldInfo = type.GetField(value.ToString());
-
-            if (fieldInfo is null)
-            {
-                return null;
-            }
+                return DriveResource.MimeType.Unknown.GetString();
             
-            MimeTypeAttribute[]? attribs = fieldInfo.GetCustomAttributes(
-                typeof(MimeTypeAttribute), false) as MimeTypeAttribute[];
-
             // Return the first if there was a match.
-            return attribs?.FirstOrDefault()?.defaultExportTo;
+            return fieldInfo.GetCustomAttributes<MimeTypeAttribute>(false).FirstOrDefault()?.Value ?? DriveResource.MimeType.Unknown.GetString();
         }
 
+        /// <summary>
+        /// It gets the default mime type to export a file.
+        /// </summary>
+        /// <param name="mimeType"></param>
+        /// <returns></returns>
+        public static DriveResource.MimeType? GetDefaultExportType(this DriveResource.MimeType mimeType)
+        {
+            // Get the type
+            Type type = mimeType.GetType();
+
+            // Get fieldinfo for this type
+            var fieldInfo = type.GetField(mimeType.ToString());
+
+            if (fieldInfo is null)
+                return null;
+
+            // Return the first if there was a match.
+            return fieldInfo.GetCustomAttributes<MimeTypeAttribute>(false).FirstOrDefault()?.DefaultExportTo;
+        }
+
+        /// <summary>
+        /// It splits a full path into a path and a resource
+        /// </summary>
+        /// <param name="pathToResource"></param>
+        /// <returns></returns>
         public static (string?, string) SplitPathFromResource(this string pathToResource)
         {
             var path = pathToResource.Split(new[] { '/', '\\' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
@@ -77,17 +97,23 @@ namespace SimpleGoogleDrive
 
             if (path.Length >= 2)
             {
-                parentPath = path.SkipLast(1).Aggregate("", (a, b) => a += $"{b}/");
+                parentPath = path.SkipLast(1).Aggregate("", (a, b) => a + $"{b}/");
             }
 
             return (parentPath, resource);
         }
 
+        /// <summary>
+        /// It removes any platform dependent paths and converts it to one Google Drive can understand
+        /// </summary>
+        /// <param name="path"></param>
+        /// <returns></returns>
         public static string FormatPath(this string path)
         {
-            return path.Split(new[] { '/', '\\' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-                .Aggregate("", (a, b) => a += $"{b}/")
-                ;
+            return path
+                .Trim()
+                .Split(new[] { '/', '\\' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .Aggregate("", (a, b) => a + $"{b}/");
 
         }
     }

@@ -1,19 +1,27 @@
 ﻿
 using System.Text;
+using SimpleGoogleDrive.Models;
 
-namespace SimpleGoogleDrive.Models
+namespace SimpleGoogleDrive
 {
+    /// <summary>
+    /// Used to build Google Drive queries
+    /// </summary>
     public class QueryBuilder
     {
-        private bool includeTrashed = false;
-        private readonly StringBuilder content = new StringBuilder();
+        private bool _includeTrashed;
+        private readonly StringBuilder _content = new();
 
+        /// <summary>
+        /// Used to build Google Drive queries
+        /// </summary>
+        /// <param name="other">Other query used as base for this one</param>
         public QueryBuilder(QueryBuilder? other = default)
         {
             if (other != null)
             {
-                content = new StringBuilder(other.content.ToString());
-                includeTrashed = other.includeTrashed;
+                _content = new StringBuilder(other._content.ToString());
+                _includeTrashed = other._includeTrashed;
             }
         }
 
@@ -24,7 +32,7 @@ namespace SimpleGoogleDrive.Models
         /// <param name="propertyValue">Property value</param>
         public QueryBuilder HasPropertyValue(string propertyName, string propertyValue)
         {
-            content.Append($" properties has {{ key='{propertyName}' and value='{propertyValue}' }}");
+            _content.Append($" properties has {{ key='{propertyName}' and value='{propertyValue}' }}");
             return this;
 
         }
@@ -36,7 +44,7 @@ namespace SimpleGoogleDrive.Models
         /// <param name="propertyValue">Property value</param>
         public QueryBuilder HasNotPropertyValue(string propertyName, string propertyValue)
         {
-            content.Append(" not ");
+            _content.Append(" not ");
             return HasPropertyValue(propertyName, propertyValue);
         }
 
@@ -56,7 +64,7 @@ namespace SimpleGoogleDrive.Models
         /// <returns></returns>
         public QueryBuilder IsType(string type)
         {
-            content.Append($" mimeType = '{type}' ");
+            _content.Append($" mimeType = '{type}' ");
             return this;
         }
 
@@ -68,7 +76,7 @@ namespace SimpleGoogleDrive.Models
         /// <returns></returns>
         public QueryBuilder TypeContains(string type)
         {
-            content.Append($" mimeType contains '{type}' ");
+            _content.Append($" mimeType contains '{type}' ");
             return this;
         }
 
@@ -89,7 +97,7 @@ namespace SimpleGoogleDrive.Models
         /// <returns></returns>
         public QueryBuilder IsNotType(string type)
         {
-            content.Append($" mimeType != '{type}' ");
+            _content.Append($" mimeType != '{type}' ");
             return this;
         }
 
@@ -101,7 +109,7 @@ namespace SimpleGoogleDrive.Models
         /// <returns></returns>
         public QueryBuilder TypeNotContains(string type)
         {
-            content.Append($" not ");
+            _content.Append($" not ");
             return TypeContains(type);
         }
 
@@ -112,7 +120,7 @@ namespace SimpleGoogleDrive.Models
         /// <returns></returns>
         public QueryBuilder IsOwner(string email)
         {
-            content.Append($" '{email}' in owners ");
+            _content.Append($" '{email}' in owners ");
             return this;
         }
 
@@ -123,7 +131,7 @@ namespace SimpleGoogleDrive.Models
         /// <returns></returns>
         public QueryBuilder IsName(string name)
         {
-            content.Append($" name = '{name}' ");
+            _content.Append($" name = '{name}' ");
             return this;
         }
 
@@ -138,7 +146,7 @@ namespace SimpleGoogleDrive.Models
         /// <returns></returns>
         public QueryBuilder NameContains(string text)
         {
-            content.Append($" name contains '{text}' ");
+            _content.Append($" name contains '{text}' ");
             return this;
         }
 
@@ -149,7 +157,7 @@ namespace SimpleGoogleDrive.Models
         /// <returns></returns>
         public QueryBuilder NameNotContains(string text)
         {
-            content.Append(" not ");
+            _content.Append(" not ");
             return NameContains(text);
         }
 
@@ -160,7 +168,7 @@ namespace SimpleGoogleDrive.Models
         /// <returns></returns>
         public QueryBuilder IsParent(string parentId)
         {
-            content.Append($" '{parentId}' in parents ");
+            _content.Append($" '{parentId}' in parents ");
             return this;
         }
 
@@ -171,7 +179,7 @@ namespace SimpleGoogleDrive.Models
         /// <returns></returns>
         public QueryBuilder IsNotParent(string parentId)
         {
-            content.Append(" not ");
+            _content.Append(" not ");
             return IsParent(parentId);
         }
 
@@ -182,7 +190,7 @@ namespace SimpleGoogleDrive.Models
         /// <returns></returns>
         public QueryBuilder IncludeTrashed(bool trashed = true)
         {
-            includeTrashed = trashed;
+            _includeTrashed = trashed;
             return this;
         }
 
@@ -191,7 +199,7 @@ namespace SimpleGoogleDrive.Models
         /// </summary>
         public QueryBuilder And()
         {
-            content.Append(" and ");
+            _content.Append(" and ");
             return this;
         }
 
@@ -202,13 +210,13 @@ namespace SimpleGoogleDrive.Models
         /// <param name="b">Right side of the query</param>
         public QueryBuilder And(QueryBuilder a, QueryBuilder b)
         {
-            content.Append(" ( ");
-            content.Append(a.content);
-            content.Append(" ) ");
+            _content.Append(" ( ");
+            _content.Append(a._content);
+            _content.Append(" ) ");
             And();
-            content.Append(" ( ");
-            content.Append(b.content);
-            content.Append(" ) ");
+            _content.Append(" ( ");
+            _content.Append(b._content);
+            _content.Append(" ) ");
 
             return this;
         }
@@ -223,9 +231,9 @@ namespace SimpleGoogleDrive.Models
                 return this;
 
             And();
-            content.Append(" ( ");
-            content.Append(right.content);
-            content.Append(" ) ");
+            _content.Append(" ( ");
+            _content.Append(right._content);
+            _content.Append(" ) ");
 
             return this;
         }
@@ -235,7 +243,7 @@ namespace SimpleGoogleDrive.Models
         /// </summary>
         public QueryBuilder Or()
         {
-            content.Append(" or ");
+            _content.Append(" or ");
             return this;
         }
 
@@ -246,13 +254,13 @@ namespace SimpleGoogleDrive.Models
         /// <param name="b">Right side of the query</param>
         public QueryBuilder Or(QueryBuilder a, QueryBuilder b)
         {
-            content.Append(" ( ");
-            content.Append(a.content);
-            content.Append(" ) ");
+            _content.Append(" ( ");
+            _content.Append(a._content);
+            _content.Append(" ) ");
             Or();
-            content.Append(" ( ");
-            content.Append(b.content);
-            content.Append(" ) ");
+            _content.Append(" ( ");
+            _content.Append(b._content);
+            _content.Append(" ) ");
 
             return this;
         }
@@ -265,9 +273,9 @@ namespace SimpleGoogleDrive.Models
             if (right == null)
                 return this;
             Or();
-            content.Append(" ( ");
-            content.Append(right.content);
-            content.Append(" ) ");
+            _content.Append(" ( ");
+            _content.Append(right._content);
+            _content.Append(" ) ");
 
             return this;
         }
@@ -280,12 +288,12 @@ namespace SimpleGoogleDrive.Models
         /// <returns>A query</returns>
         public string Build()
         {
-            if (content.Length > 0)
+            if (_content.Length > 0)
             {
                 And();
             }
-            content.Append($" trashed = {includeTrashed} ");
-            return content.ToString();
+            _content.Append($" trashed = {_includeTrashed} ");
+            return _content.ToString();
         }
     }
 }

@@ -1,25 +1,38 @@
-﻿using SimpleGoogleDrive.Exceptions;
+﻿using System.Runtime.CompilerServices;
+using SimpleGoogleDrive.Exceptions;
 
 namespace SimpleGoogleDrive.Models;
 
+/// <summary>
+/// 
+/// </summary>
 public class DriveResource
 {
     private readonly GoogleDriveService? _service;
 
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <param name="service"></param>
     public DriveResource(GoogleDriveService service)
     {
-        this._service = service;
+        _service = service;
     }
 
     /// <summary>
     /// Name of the resource
     /// </summary>
-    public string Name { get; set; }
+    public string Name { get; set; } = null!;
+
+    /// <summary>
+    /// Full path of the resource
+    /// </summary>
+    public string? FullName { get; set; }
 
     /// <summary>
     /// Google Drive Id of the resource
     /// </summary> 
-    public string Id { get; set; }
+    public string Id { get; set; } = null!;
 
     /// <summary>
     /// List of the parent folders' ids
@@ -44,19 +57,20 @@ public class DriveResource
     /// <summary>
     /// Public file properties
     /// </summary>
-    public Dictionary<string, string> Properties { get; set; } = new Dictionary<string, string>();
+    public Dictionary<string, string> Properties { get; set; } = new();
 
     /// <summary>
     /// It downloads the resource. If it is a folder it will not download the resources within
     /// </summary>
     /// <param name="destination">Local path where to store the resource. If it exists, it will overwrite it</param>
-    /// <param name="onProgress">Function to run on downdload progress. The first parameter is the total uploaded data and the second one is the total file size, bot in bytes</param>
+    /// <param name="onProgress">Function to run on download progress. The first parameter is the total uploaded data and the second one is the total file size, bot in bytes</param>
     /// <param name="onFailure">Function to run if the download fails</param>
     /// <param name="token">Cancellation token</param>
-    /// <exception cref="ServiceNotAuthenticatedException">It's thrown if the service is not authenticated</exception>
-    public Task Download(string destination, Action<long, long?>? onProgress = default, Action<Exception>? onFailure = default, CancellationToken token = default)
+    public Task Download(string destination, Action<long, long?>? onProgress = default,
+        Action<Exception>? onFailure = default, CancellationToken token = default)
     {
-        return _service?.DownloadResource(this, destination, onProgress, onFailure, token) ?? throw new ServiceNotAuthenticatedException();
+        ArgumentNullException.ThrowIfNull(_service);
+        return _service.DownloadResource(this, destination, onProgress, onFailure, token);
     }
 
     /// <summary>
@@ -64,13 +78,14 @@ public class DriveResource
     /// </summary>
     /// <param name="destination">Local path where to store the resource. If it exists, it will overwrite it</param>
     /// <param name="exportType"></param>
-    /// <param name="onProgress">Function to run on downdload progress. The first parameter is the total uploaded data and the second one is the total file size, bot in bytes</param>
+    /// <param name="onProgress">Function to run on download progress. The first parameter is the total uploaded data and the second one is the total file size, bot in bytes</param>
     /// <param name="onFailure">Function to run if the download fails</param>
     /// <param name="token">Cancellation token</param>
-    /// <exception cref="ServiceNotAuthenticatedException">It's thrown if the service is not authenticated</exception>
-    public Task Export(string destination, MimeType exportType = default, Action<long, long?>? onProgress = default, Action<Exception>? onFailure = default, CancellationToken token = default)
+    public Task Export(string destination, MimeType exportType = default, Action<long, long?>? onProgress = default,
+        Action<Exception>? onFailure = default, CancellationToken token = default)
     {
-        return _service?.ExportResource(this, destination, exportType, onProgress, onFailure, token) ?? throw new ServiceNotAuthenticatedException();
+        ArgumentNullException.ThrowIfNull(_service);
+        return _service.ExportResource(this, destination, exportType, onProgress, onFailure, token);
     }
 
     /// <summary>
@@ -78,36 +93,38 @@ public class DriveResource
     /// </summary>
     /// <param name="stream">Stream to store the data in</param>
     /// <param name="exportType"></param>
-    /// <param name="onProgress">Function to run on downdload progress. The first parameter is the total uploaded data and the second one is the total file size, bot in bytes</param>
+    /// <param name="onProgress">Function to run on download progress. The first parameter is the total uploaded data and the second one is the total file size, bot in bytes</param>
     /// <param name="onFailure">Function to run if the download fails</param>
     /// <param name="token">Cancellation token</param>
-    /// <exception cref="ServiceNotAuthenticatedException">It's thrown if the service is not authenticated</exception>
-    public Task Export(MemoryStream stream, MimeType exportType = default, Action<long, long?>? onProgress = default, Action<Exception>? onFailure = default, CancellationToken token = default)
+    public Task Export(MemoryStream stream, MimeType exportType = default, Action<long, long?>? onProgress = default,
+        Action<Exception>? onFailure = default, CancellationToken token = default)
     {
-        return _service?.ExportResource(this, stream,exportType, onProgress, onFailure, token) ?? throw new ServiceNotAuthenticatedException();
+        ArgumentNullException.ThrowIfNull(_service);
+        return _service.ExportResource(this, stream, exportType, onProgress, onFailure, token);
     }
 
     /// <summary>
     /// It downloads the resource
     /// </summary>
     /// <param name="stream">Stream to store the data in</param>
-    /// <param name="onProgress">Function to run on downdload progress. The first parameter is the total uploaded data and the second one is the total file size, bot in bytes</param>
+    /// <param name="onProgress">Function to run on download progress. The first parameter is the total uploaded data and the second one is the total file size, bot in bytes</param>
     /// <param name="onFailure">Function to run if the download fails</param>
     /// <param name="token">Cancellation token</param>
-    /// <exception cref="ServiceNotAuthenticatedException">It's thrown if the service is not authenticated</exception>
-    public Task Download(MemoryStream stream, Action<long, long?>? onProgress = default, Action<Exception>? onFailure = default, CancellationToken token = default)
+    public Task Download(MemoryStream stream, Action<long, long?>? onProgress = default,
+        Action<Exception>? onFailure = default, CancellationToken token = default)
     {
-        return _service?.DownloadResource(this, stream, onProgress, onFailure, token) ?? throw new ServiceNotAuthenticatedException();
+        ArgumentNullException.ThrowIfNull(_service);
+        return _service.DownloadResource(this, stream, onProgress, onFailure, token);
     }
 
     /// <summary>
     /// It deletes the resource
     /// </summary>
     /// <param name="token">Cancellation token</param>
-    /// <exception cref="ServiceNotAuthenticatedException">It's thrown if the service is not authenticated</exception>
     public Task Delete(CancellationToken token = default)
     {
-        return _service?.DeleteResource(this, token) ?? throw new ServiceNotAuthenticatedException();
+        ArgumentNullException.ThrowIfNull(_service);
+        return _service.DeleteResource(this, token);
     }
 
     /// <summary>
@@ -116,56 +133,60 @@ public class DriveResource
     /// <param name="parameters">Extra parameters for the query</param>
     /// <param name="deepSearch">If true it will bring all the child resources</param> 
     /// <param name="token">Cancellation token</param>
-    /// <exception cref="ServiceNotAuthenticatedException">It's thrown if the service is not authenticated</exception>
-    public async Task<IEnumerable<DriveResource>> GetInnerResources(QueryBuilder? parameters = default, bool deepSearch = false, CancellationToken token = default)
+    public async IAsyncEnumerable<DriveResource> GetInnerResources(QueryBuilder? parameters = default,
+        bool deepSearch = false, [EnumeratorCancellation] CancellationToken token = default)
     {
-        if (Type != MimeType.Folder)
-            return Enumerable.Empty<DriveResource>();
+        ArgumentNullException.ThrowIfNull(_service);
 
-        var query = new QueryBuilder().IsParent(Id).And(parameters);
-
-        var resources = new List<DriveResource>();
-
-        foreach (var resource in await (_service?.QueryResources(query, token) ?? throw new ServiceNotAuthenticatedException()))
+        if (Type is not MimeType.Folder)
+            yield break;
+        
+        var folders = new Queue<DriveResource>(new[] {this});
+        Task searchParentTask = Task.CompletedTask;
+        while (folders.Any())
         {
-            resources.Add(resource);
-        }
+            var folder = folders.Dequeue();
 
-        if (deepSearch)
-        {
-            var folders = await (_service?.QueryResources(new QueryBuilder().IsType(MimeType.Folder).And().IsParent(Id), token) ?? throw new ServiceNotAuthenticatedException());
-
-            foreach (var folder in folders)
+            if (deepSearch)
             {
-                resources.AddRange(await folder.GetInnerResources(parameters, deepSearch, token));
+                // TODO: See if I can implement the query mechanism so I only have to do the query once.
+                // I will be bringing more data but it may be worth it.
+                var getChildrenQuery = new QueryBuilder().IsType(MimeType.Folder).And().IsParent(folder.Id);
+                searchParentTask = _service.QueryResources(getChildrenQuery, token).ForEachAsync(resource => folders.Enqueue(resource));
             }
+            
+            var query = new QueryBuilder().IsParent(folder.Id).And(parameters);
+            await foreach (var resource in _service.QueryResources(query, token)) 
+                yield return resource;
+
+            await searchParentTask;
         }
-
-        return resources;
-
     }
 
     /// <summary>
     /// It retrieves the full name of the file, including the path
     /// </summary>
     /// <param name="token">Cancellation token</param>
-    /// <exception cref="ServiceNotAuthenticatedException">It's thrown if the service is not authenticated</exception>
     public async Task<string> GetFullName(CancellationToken token = default)
     {
-        return await (_service?.GetResourceFullName(this, token) ?? throw new ServiceNotAuthenticatedException());
+        ArgumentNullException.ThrowIfNull(_service);
+        FullName ??= await _service.GetResourceFullName(this, token);
+        return FullName;
     }
+
 
     /// <summary>
     /// It returns the parent folder, if it exists.
     /// </summary>
     /// <param name="token">Cancellation token</param>
-    /// <exception cref="ServiceNotAuthenticatedException">It's thrown if the service is not authenticated</exception>
-    public async Task<DriveResource?> GetParent(CancellationToken token = default)
+    public Task<DriveResource?> GetParent(CancellationToken token = default)
     {
-        if (Parent == null)
-            return null;
-        else
-            return await _service?.GetResource(Parent, token) ?? throw new ServiceNotAuthenticatedException();
+        ArgumentNullException.ThrowIfNull(_service);
+        return Parent switch
+        {
+            null => Task.FromResult<DriveResource?>(null),
+            _ => _service.GetResource(Parent, token)
+        };
     }
 
     /// <summary>
@@ -174,14 +195,15 @@ public class DriveResource
     /// <param name="destination">Path on Google Drive to store the copy of the resource</param>
     /// <param name="token">Cancellation token</param>
     /// <returns>The new resource created on the destination path</returns>
-    /// <exception cref="ServiceNotAuthenticatedException">It's thrown if the service is not authenticated</exception>
-    /// <exception cref="FolderCannotBeCopiedException">It's thrown if the resource to be copied is a folder</exception>
+    /// <exception cref="FoldersCannotBeCopiedException">It's thrown if the resource to be copied is a folder</exception>
     public Task<DriveResource?> Copy(string destination, CancellationToken token = default)
     {
-        if (Type == MimeType.Folder)
-            throw new FolderCannotBeCopiedException();
+        ArgumentNullException.ThrowIfNull(_service);
+        
+        if (Type is MimeType.Folder)
+            throw new FoldersCannotBeCopiedException();
 
-        return _service?.CopyResource(this, destination, token) ?? throw new ServiceNotAuthenticatedException();
+        return _service.CopyResource(this, destination, token);
     }
 
     /// <summary>
@@ -190,117 +212,242 @@ public class DriveResource
     /// <param name="parentFolder">Folder where to copy the resource</param>
     /// <param name="token">Cancellation token</param>
     /// <returns>The new resource created on the destination path</returns>
-    /// <exception cref="ServiceNotAuthenticatedException">It's thrown if the service is not authenticated</exception>
-    /// <exception cref="FolderCannotBeCopiedException">It's thrown if the resource to be copied is a folder</exception>
+    /// <exception cref="FoldersCannotBeCopiedException">It's thrown if the resource to be copied is a folder</exception>
     public Task<DriveResource?> Copy(DriveResource parentFolder, CancellationToken token = default)
     {
-        if (Type == MimeType.Folder)
-            throw new FolderCannotBeCopiedException();
+        ArgumentNullException.ThrowIfNull(_service);
+        if (Type is MimeType.Folder)
+            throw new FoldersCannotBeCopiedException();
 
-        return _service?.CopyResource(this, parentFolder, token) ?? throw new ServiceNotAuthenticatedException();
+        return _service.CopyResource(this, parentFolder, token);
     }
 
     /// <summary>
     /// It updates a resource's name and public properties on Google Drive with the ones on this object
     /// </summary>
     /// <param name="token">Cancellation token</param>
-    /// <exception cref="ServiceNotAuthenticatedException">It's thrown if the service is not authenticated</exception>
     public Task Update(CancellationToken token = default)
     {
-        return _service?.UpdateResource(this, token) ?? throw new ServiceNotAuthenticatedException();
+        ArgumentNullException.ThrowIfNull(_service);
+        return _service.UpdateResource(this, token);
     }
 
     /// <summary>
     /// It updates a resource's name, public properties and contents on Google Drive with the ones on this object
     /// </summary>
     /// <param name="file">File with the content to be uploaded</param>
-    /// <param name="onProgress">Function to run on each progress update. The parameters are the total amount of bytes uplodaded and the size of the file</param>
+    /// <param name="onProgress">Function to run on each progress update. The parameters are the total amount of bytes uploaded and the size of the file</param>
     /// <param name="onFailure">Function to run if the upload fails</param>
     /// <param name="token">Cancellation token</param>
     /// <returns></returns>
-    /// <exception cref="ServiceNotAuthenticatedException">It's thrown if the service is not authenticated</exception>
     /// <exception cref="FileNotFoundException">It's thrown if the file does not exists</exception>
-    public Task Update(FileInfo file, Action<long, long>? onProgress = default, Action<Exception>? onFailure = default, CancellationToken token = default)
+    public Task Update(FileInfo file, Action<long, long>? onProgress = default, Action<Exception>? onFailure = default,
+        CancellationToken token = default)
     {
+        ArgumentNullException.ThrowIfNull(_service);
         if (!file.Exists)
             throw new FileNotFoundException();
 
-        return _service?.UpdateResource(this, file.OpenRead(), file.MimeType().GetString(), onProgress, onFailure, token) ?? throw new ServiceNotAuthenticatedException();
-
+        return _service.UpdateResource(this, file.OpenRead(), file.MimeType(), onProgress, onFailure, token);
     }
-        
 
+
+    /// <summary>
+    /// Type of the resource
+    /// </summary>
     public enum MimeType
     {
-        [MimeType("unknown/unkown")]
-        Unknown = -1,
+        /// <summary>
+        /// The Mime type could not be detected or is not considered in this library
+        /// </summary>
+        [MimeType("unknown/unknown")] Unknown = -1,
+
+        /// <summary>
+        /// A Google Drive Folder 
+        /// </summary>
         [MimeType("application/vnd.google-apps.folder")]
         Folder,
-        [MimeType("video/x-matroska")]
-        MKV,
-        [MimeType("video/x-flv")]
-        FLV,
-        [MimeType("video/mp4")]
-        MP4,
-        [MimeType("video/quicktime")]
-        MOV,
-        [MimeType("video/x-msvideo")]
-        AVI,
-        [MimeType("video/x-ms-wmv")]
-        WMV,
-        [MimeType("text/plain")]
-        TXT,
-        [MimeType("text/html")]
-        HTML,
-        [MimeType("application/zip")]
-        ZIP,
-        [MimeType("application/rtf")]
-        RTF,
+        
+        /// <summary>
+        /// A video with a .mkv extension
+        /// </summary>
+        [MimeType("video/x-matroska")] Mkv,
+        
+        /// <summary>
+        /// A video with the .flv extension
+        /// </summary>
+        [MimeType("video/x-flv")] Flv,
+        
+        /// <summary>
+        /// A video with the .mp4 extension
+        /// </summary>
+        [MimeType("video/mp4")] Mp4,
+        
+        /// <summary>
+        /// A video with the .mov extension
+        /// </summary>
+        [MimeType("video/quicktime")] Mov,
+        
+        /// <summary>
+        /// A video with the .avi extension
+        /// </summary>
+        [MimeType("video/x-msvideo")] Avi,
+        
+        /// <summary>
+        /// A video with the .wmv extension
+        /// </summary>
+        [MimeType("video/x-ms-wmv")] Wmv,
+        
+        /// <summary>
+        /// A text file
+        /// </summary>
+        [MimeType("text/plain")] Txt,
+        
+        /// <summary>
+        /// An HTML file
+        /// </summary>
+        [MimeType("text/html")] Html,
+        
+        /// <summary>
+        /// A zip file
+        /// </summary>
+        [MimeType("application/zip")] Zip,
+        
+        /// <summary>
+        /// A rich text file
+        /// </summary>
+        [MimeType("application/rtf")] Rtf,
+
+        /// <summary>
+        /// An Open Office word document (Word equivalent)
+        /// </summary>
         [MimeType("application/vnd.oasis.opendocument.text")]
         OpenOfficeDoc,
-        [MimeType("application/pdf")]
-        PDF,
+        
+        /// <summary>
+        /// A PDF file
+        /// </summary>
+        [MimeType("application/pdf")] Pdf,
+
+        /// <summary>
+        /// A Microsoft Word file
+        /// </summary>
         [MimeType("application/vnd.openxmlformats-officedocument.wordprocessingml.document")]
-        MSWord,
-        [MimeType("application/epub+zip")]
-        EPUB,
+        MsWord,
+        
+        /// <summary>
+        /// A digital book
+        /// </summary>
+        [MimeType("application/epub+zip")] Epub,
+
+        /// <summary>
+        /// An Excel spreadsheet
+        /// </summary>
         [MimeType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")]
-        MSExcel,
+        MsExcel,
+
+        /// <summary>
+        /// An Open Office spreadsheet document (Excel equivalent)
+        /// </summary>
         [MimeType("application/x-vnd.oasis.opendocument.spreadsheet")]
         OpenOfficeSheet,
-        [MimeType("text/csv")]
-        CSV,
+        
+        /// <summary>
+        /// A comma separated value file
+        /// </summary>
+        [MimeType("text/csv")] Csv,
+
+        /// <summary>
+        /// A tab separated value file
+        /// </summary>
         [MimeType("text/tab-separated-values")]
-        TSV,
-        [MimeType("image/jpeg")]
-        JPEG,
-        [MimeType("image/png")]
-        PNG,
-        [MimeType("image/svg+xml")]
-        SVG,
+        Tsv,
+        
+        /// <summary>
+        /// A Jpeg image
+        /// </summary>
+        [MimeType("image/jpeg")] Jpeg,
+        
+        /// <summary>
+        /// A Png image
+        /// </summary>
+        [MimeType("image/png")] Png,
+        
+        /// <summary>
+        /// A Svg image
+        /// </summary>
+        [MimeType("image/svg+xml")] Svg,
+        
+        /// <summary>
+        /// A PowerPoint presentation file
+        /// </summary>
         [MimeType("application/vnd.openxmlformats-officedocument.presentationml.presentation")]
         MsPowerPoint,
+        
+        /// <summary>
+        /// An Open Office presentation file (PowerPoint equivalent)
+        /// </summary>
         [MimeType("application/vnd.oasis.opendocument.presentation")]
         OpenOfficePresentation,
+
+        /// <summary>
+        /// A Json file
+        /// </summary>
         [MimeType("application/vnd.google-apps.script+json")]
-        JSON,
-        [MimeType("application/vnd.google-apps.document", MSWord)]
+        Json,
+
+        /// <summary>
+        /// A Google Docs file (Word equivalent)
+        /// </summary>
+        [MimeType("application/vnd.google-apps.document", MsWord)]
         GoogleDocs,
+
+        /// <summary>
+        /// A third party shortcut
+        /// </summary>
         [MimeType("application/vnd.google-apps.drive-sdk")]
         ThirdPartyShortcut,
-        [MimeType("application/vnd.google-apps.drawing",PNG)]
+        
+        /// <summary>
+        /// A Google Drawing file
+        /// </summary>
+        [MimeType("application/vnd.google-apps.drawing", Png)]
         GoogleDrawing,
-        [MimeType("application/vnd.google-apps.presentation",MsPowerPoint)]
+
+        /// <summary>
+        /// A Google Slides file (PowerPoint equivalent)
+        /// </summary>
+        [MimeType("application/vnd.google-apps.presentation", MsPowerPoint)]
         GoogleSlides,
-        [MimeType("application/vnd.google-apps.script",JSON)]
+
+        /// <summary>
+        /// A Google App Script File
+        /// </summary>
+        [MimeType("application/vnd.google-apps.script", Json)]
         GoogleAppScript,
-        [MimeType("application/vnd.google-apps.spreadsheet",MSExcel)]
+
+        /// <summary>
+        /// A Google Spreadsheet file (Excel equivalent)
+        /// </summary>
+        [MimeType("application/vnd.google-apps.spreadsheet", MsExcel)]
         GoogleSpreadsheet,
+
+        /// <summary>
+        /// A generic video file
+        /// </summary>
         [MimeType("application/vnd.google-apps.video")]
         GenericVideo,
+
+        /// <summary>
+        /// A generic photo file
+        /// </summary>
         [MimeType("application/vnd.google-apps.photo")]
         GenericPhoto,
+
+        /// <summary>
+        /// A Draw.IO diagram
+        /// </summary>
         [MimeType("application/vnd.jgraph.mxfile")]
-        DrawIODiagram,
+        DrawIoDiagram
     }
 }
