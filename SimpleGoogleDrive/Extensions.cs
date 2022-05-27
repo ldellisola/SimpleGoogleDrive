@@ -43,6 +43,14 @@ namespace SimpleGoogleDrive
                 .FirstOrDefault(t => comp.Compare(t.GetString(), googleDriveResource.MimeType) == 0, DriveResource.MimeType.Unknown);
         }
 
+        public static DriveResource.MimeType MimeType(this string mimeType)
+        {
+            var comp = StringComparer.Create(CultureInfo.InvariantCulture, true);
+            return Enum.GetValues<DriveResource.MimeType>()
+                .FirstOrDefault(t => comp.Compare(t.GetString(), mimeType) == 0, DriveResource.MimeType.Unknown);
+
+        }
+
         /// <summary>
         /// It Gets the string form of a Mime type
         /// </summary>

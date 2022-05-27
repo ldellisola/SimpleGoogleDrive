@@ -1,5 +1,6 @@
 ﻿using System.Runtime.CompilerServices;
 using SimpleGoogleDrive.Exceptions;
+using File = Google.Apis.Drive.v3.Data.File;
 
 namespace SimpleGoogleDrive.Models;
 
@@ -58,6 +59,11 @@ public class DriveResource
     /// Public file properties
     /// </summary>
     public Dictionary<string, string> Properties { get; set; } = new();
+
+    /// <summary>
+    /// Field loaded if the resource is a shortcut
+    /// </summary>
+    public ShortcutDetails? ShortcutDetails { get; set; }
 
     /// <summary>
     /// It downloads the resource. If it is a folder it will not download the resources within
@@ -137,10 +143,12 @@ public class DriveResource
         bool deepSearch = false, [EnumeratorCancellation] CancellationToken token = default)
     {
         ArgumentNullException.ThrowIfNull(_service);
-
-        if (Type is not MimeType.Folder)
+        
+        if ( Type is not MimeType.Folder && ShortcutDetails?.Type is not MimeType.Folder)
             yield break;
         
+        // if (Type is not MimeType.Folder && (treatShortcutAsFolders && Type is not MimeType.GoogleDriveShortcut))
+        //     yield break;
         var folders = new Queue<DriveResource>(new[] {this});
         Task searchParentTask = Task.CompletedTask;
         while (folders.Any())
@@ -151,8 +159,12 @@ public class DriveResource
             {
                 // TODO: See if I can implement the query mechanism so I only have to do the query once.
                 // I will be bringing more data but it may be worth it.
-                var getChildrenQuery = new QueryBuilder().IsType(MimeType.Folder).And().IsParent(folder.Id);
-                searchParentTask = _service.QueryResources(getChildrenQuery, token).ForEachAsync(resource => folders.Enqueue(resource));
+                var getChildrenQuery = new QueryBuilder().IsParent(folder.Id).And(
+                    new QueryBuilder().IsType(MimeType.Folder).Or().IsType(MimeType.GoogleDriveShortcut)
+                );
+                
+                await _service.QueryResources(getChildrenQuery, token).ForEachAsync(resource => folders.Enqueue(resource));
+                // searchParentTask = _service.QueryResources(getChildrenQuery, token).ForEachAsync(resource => folders.Enqueue(resource));
             }
             
             var query = new QueryBuilder().IsParent(folder.Id).And(parameters);
@@ -250,7 +262,6 @@ public class DriveResource
 
         return _service.UpdateResource(this, file.OpenRead(), file.MimeType(), onProgress, onFailure, token);
     }
-
 
     /// <summary>
     /// Type of the resource
@@ -448,6 +459,26 @@ public class DriveResource
         /// A Draw.IO diagram
         /// </summary>
         [MimeType("application/vnd.jgraph.mxfile")]
-        DrawIoDiagram
+        DrawIoDiagram,
+        
+        /// <summary>
+        /// A Shortcut to other resource in Google Drive
+        /// </summary>
+        [MimeType("application/vnd.google-apps.shortcut")]
+        GoogleDriveShortcut
     }
+}
+
+/// <summary>
+/// 
+/// </summary>
+public class ShortcutDetails
+{
+    public ShortcutDetails(File.ShortcutDetailsData data)
+    {
+        TargetId = data.TargetId;
+        Type = data.TargetMimeType.MimeType();
+    }
+    public string TargetId { get; set; }
+    public DriveResource.MimeType Type { get; set; }
 }

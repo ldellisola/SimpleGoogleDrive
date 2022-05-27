@@ -1,4 +1,6 @@
 ﻿// See https://aka.ms/new-console-template for more information
+
+using System.Reflection;
 using SimpleGoogleDrive;
 using SimpleGoogleDrive.Models;
 
@@ -15,13 +17,35 @@ var settings = new DriveAuthSettings(
 using (var drive = new GoogleDriveService(settings, true,"./storage.json")){
     await drive.Authenticate();
     
-    DriveResource? file = await drive.FindFolder("Trips");
+    DriveResource? file = await drive.GetResource("10Z_keINAXaP-ffcJmcijZ2XQx1uGVOMf");
+
+    int aaa = 0;
+    await foreach (var a in file.GetInnerResources(deepSearch:true))
+    {
+        aaa++;
+        Console.WriteLine(await a.GetFullName());
+    }
+    Console.WriteLine(aaa);
+
+    return;
+    // DriveResource? file = await drive.FindFolder("/Shared");
+
+    // var fullName = await file?.GetFullName()!;
     
-    await foreach(var item in file!.GetInnerResources(deepSearch:true))
-        Console.WriteLine($"{DateTime.Now.ToLongTimeString()}: {item.Id} : {await item.GetFullName()}");
+    // Console.WriteLine(fullName);
+    int aa = 0;
     
-    Console.WriteLine($"ok. Calls {drive.Calls}");
+    // var query = new QueryBuilder();//.IsNotType(DriveResource.MimeType.Folder);
     
+    await foreach (var item in file!.GetInnerResources(deepSearch: false))
+    {
+        aa++;
+        var a = await item.GetFullName();
+        Console.WriteLine($"{DateTime.Now.ToLongTimeString()}: {item.Id} : {a}");
+    }
+    
+    Console.WriteLine($"ok. total: {aa} Calls {drive.Calls}");
+
     // var param = new QueryBuilder().IsOwner("user@gmail.com")
     //                                 .And(new QueryBuilder() .TypeContains("video")
     //                                                         .Or()

@@ -12,16 +12,17 @@
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <RepositoryUrl>https://github.com/ldellisola/SimpleGoogleDrive</RepositoryUrl>
     <PackageTags>google drive</PackageTags>
-    <PackageReleaseNotes>Fixed authentication without credentials file</PackageReleaseNotes>
+    <PackageReleaseNotes>Major optimizations </PackageReleaseNotes>
     <GenerateDocumentationFile>True</GenerateDocumentationFile>
     <FileVersion>0.0.6</FileVersion>
     <AssemblyVersion>0.0.6</AssemblyVersion>
     <Version>0.0.2</Version>
-    <PackageVersion>0.3.1</PackageVersion>
+    <PackageVersion>0.4.1</PackageVersion>
   </PropertyGroup>
 
   <PropertyGroup Condition=" '$(Configuration)' == 'Release' ">
     <DebugSymbols>true</DebugSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
   </PropertyGroup>
 
   <ItemGroup>

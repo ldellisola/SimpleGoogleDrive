@@ -32,7 +32,7 @@ namespace SimpleGoogleDrive
         /// <param name="propertyValue">Property value</param>
         public QueryBuilder HasPropertyValue(string propertyName, string propertyValue)
         {
-            _content.Append($" properties has {{ key='{propertyName}' and value='{propertyValue}' }}");
+            _content.Append($" properties has {{ key='{propertyName.Replace("'","\'")}' and value='{propertyValue.Replace("'","\'")}' }}");
             return this;
 
         }
@@ -131,14 +131,11 @@ namespace SimpleGoogleDrive
         /// <returns></returns>
         public QueryBuilder IsName(string name)
         {
-            _content.Append($" name = '{name}' ");
+            _content.Append($" name = '{name.Replace("'",@"\'")}' ");
             return this;
         }
-
-
-
-
-
+        
+        
         /// <summary>
         /// Adds a specific string that has to be in the name of our query result
         /// </summary>
@@ -146,7 +143,7 @@ namespace SimpleGoogleDrive
         /// <returns></returns>
         public QueryBuilder NameContains(string text)
         {
-            _content.Append($" name contains '{text}' ");
+            _content.Append($" name contains '{text.Replace("'","\'")}' ");
             return this;
         }
 
