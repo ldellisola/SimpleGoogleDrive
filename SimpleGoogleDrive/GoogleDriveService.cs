@@ -164,12 +164,16 @@ public class GoogleDriveService : IDisposable
 
         var inRoot = await QueryResources(inRootQuery).AnyAsync(token);
 
-        if (inRoot)
+        if ( resource.ShortcutDetails?.Type is not DriveResource.MimeType.Folder && inRoot)
             return resource.Name;
+        //
+        // if (inRoot)
+        //     _storage.DeleteRoot(resource.Id);
 
         string? parentFullName = null;
         if (resource.Parent is not null)
-            parentFullName = _storage.GetPath(resource.Parent) ?? await GetResourceFullName(resource.Parent, token);
+            parentFullName =  _storage.GetPath(resource.Parent) ??
+                await GetResourceFullName(resource.Parent, token);
 
         var fullName = new StringBuilder(parentFullName?.FormatPath() ?? string.Empty).Append(resource.Name).ToString();
 
@@ -210,7 +214,7 @@ public class GoogleDriveService : IDisposable
     /// <returns>A DriveResource object</returns>
     private DriveResource? MapToDriveResource(File? resource)
     {
-        return resource switch
+        var driveResource = resource switch
         {
             null => null,
             _ => new DriveResource(this)
@@ -227,10 +231,19 @@ public class GoogleDriveService : IDisposable
                 Properties = resource.Properties?.ToDictionary(t => t.Key, t => t.Value) ??
                              new Dictionary<string, string>(),
                 Size = resource.Size,
-                IsTrashed = resource.Trashed ?? false
-                // ShortcutDetails = resource.ShortcutDetails is null ? null : new ShortcutDetails(resource.ShortcutDetails)
+                IsTrashed = resource.Trashed ?? false,
+                ShortcutDetails = resource.ShortcutDetails is null ? null : new ShortcutDetails(resource.ShortcutDetails)
             }
         };
+
+        if (driveResource is not null)
+        {
+            // _storage.Add(driveResource.Id, driveResource.Name);
+            // _storage.Add(driveResource);
+            // _storage.Add(driveResource.Id,await driveResource.(token));
+        }
+
+        return driveResource;
     }
 
 
@@ -738,7 +751,7 @@ public class GoogleDriveService : IDisposable
 
         var request = _service.Files.Update(metadata, resource.Id, content, contentType.GetString());
         request.Fields = _fields;
-        request.ResponseReceived += res => resource = MapToDriveResource(res);
+        request.ResponseReceived +=  res => resource = MapToDriveResource(res);
 
         request.ProgressChanged += progress =>
         {

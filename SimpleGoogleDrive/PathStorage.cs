@@ -1,4 +1,6 @@
-﻿using System.Text.Json;
+﻿using System.Reflection.Emit;
+using System.Text.Json;
+using SimpleGoogleDrive.Models;
 
 namespace SimpleGoogleDrive
 {
@@ -97,6 +99,42 @@ namespace SimpleGoogleDrive
             _pathToId.Remove(path);
             _idToPath.Remove(id);
         }
+
+
+        // private Dictionary<string, string?> _parents = new();
+        // private Dictionary<string, string> _names = new();
+        //
+        // public void Add(DriveResource? resource)
+        // {
+        //     if (resource is null)
+        //         return;
+        //     
+        //     _parents.Add(resource.Id, resource.Parent);
+        //     _names.Add(resource.Id,resource.Name);
+        // }
+        //
+        // public string? GetFullPath(string id)
+        // {
+        //     var ids = new List<string?>();
+        //     do
+        //     {
+        //         if (_parents.TryGetValue(id, out string? parentId))
+        //             ids.Add(parentId);
+        //         else
+        //             break;
+        //     } while (true);
+        //
+        //     ids.RemoveAll(t => t is null);
+        //
+        //     return ids.Any() ? ids.Select(t => _names[t!]).Aggregate("", (a, b) => $"{a}/{b}") : null;
+        // }
+
+        // public void DeleteRoot(string id)
+        // {
+        //     _parents.Remove(id);
+        //     _names.Remove(id);
+        // }
+        
         
 
         // private Dictionary<string, string?> _storage = new();

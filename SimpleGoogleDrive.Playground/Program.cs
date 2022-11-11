@@ -14,13 +14,15 @@ var settings = new DriveAuthSettings(
     mode: DriveAuthSettings.AuthMode.Console
     );
 
-using (var drive = new GoogleDriveService(settings, true,"./storage.json")){
+using (var drive = new GoogleDriveService(settings, false,"./storage.json")){
     await drive.Authenticate();
     
-    DriveResource? file = await drive.GetResource("10Z_keINAXaP-ffcJmcijZ2XQx1uGVOMf");
+    DriveResource? file = await drive.GetResource("1FuZJRV-9fr_LptreQQiN3F1xzRDGyrrx");
+
+    var query = new QueryBuilder().IsNotType(DriveResource.MimeType.Folder).And().IsNotType(DriveResource.MimeType.GoogleDriveShortcut); //.And().HasNotPropertyValue("is downloaded","true");
 
     int aaa = 0;
-    await foreach (var a in file.GetInnerResources(deepSearch:true))
+    await foreach (var a in file.GetInnerResources(query,deepSearch:true))
     {
         aaa++;
         Console.WriteLine(await a.GetFullName());

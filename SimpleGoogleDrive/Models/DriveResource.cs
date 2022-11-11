@@ -163,8 +163,11 @@ public class DriveResource
                     new QueryBuilder().IsType(MimeType.Folder).Or().IsType(MimeType.GoogleDriveShortcut)
                 );
                 
-                await _service.QueryResources(getChildrenQuery, token).ForEachAsync(resource => folders.Enqueue(resource));
-                // searchParentTask = _service.QueryResources(getChildrenQuery, token).ForEachAsync(resource => folders.Enqueue(resource));
+                // await _service.QueryResources(getChildrenQuery, token).ForEachAsync(resource => folders.Enqueue(resource));
+                searchParentTask = _service.QueryResources(getChildrenQuery, token).ForEachAsync(resource =>
+                {
+                    folders.Enqueue(resource);
+                });
             }
             
             var query = new QueryBuilder().IsParent(folder.Id).And(parameters);
